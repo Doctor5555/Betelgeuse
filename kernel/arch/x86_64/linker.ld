@@ -10,22 +10,32 @@ SECTIONS
 	_kernel_start = .;
 	.text ALIGN(4K) : AT (ADDR (.text) - 0xC0000000)
 	{
+		_code = .;
 		*(.multiboot)
 		*(.text)
 	}
 
 	.rodata ALIGN(4K) : AT (ADDR (.rodata) - 0xC0000000)
 	{
+		_rodata = .;
 		*(.rodata)
 	}
 
 	.data ALIGN(4K) : AT (ADDR (.data) - 0xC0000000)
 	{
+		_data = .;
 		*(.data)
+	}
+
+	.eh_frame ALIGN(4K) : AT (ADDR (.eh_frame) - 0xC0000000)
+	{
+		_ehframe = .;
+		*(.eh_frame)
 	}
 
 	.bss ALIGN(4K) : AT (ADDR (.bss) - 0xC0000000)
 	{
+		_bss = .;
 		*(COMMON)
 		*(.bss)
 		*(.bootstrap_stack)

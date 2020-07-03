@@ -2,27 +2,38 @@ ENTRY(_start)
 
 SECTIONS
 {
-	. = 1M;
+	/* The kernel lives at 3GB + 1MB in virtual address space, */
+	/* which is mapped to 1MB in physical address space. */
+	. = 0xC0100000;
 
-	.text BLOCK(4K) : ALIGN(4K)
+	/* Symbol that indicates the start address of the kernel */
+	_kernel_start = .;
+	.text ALIGN(4K) : AT (ADDR (.text) - 0xC0000000)
 	{
+		_code = .;
 		*(.multiboot)
 		*(.text)
 	}
 
-	.rodata BLOCK(4K) : ALIGN(4K)
+	.rodata ALIGN(4K) : AT (ADDR (.rodata) - 0xC0000000)
 	{
+		_rodata = .;
 		*(.rodata)
 	}
 
-	.data BLOCK(4K) : ALIGN(4K)
+	.data ALIGN(4K) : AT (ADDR (.data) - 0xC0000000)
 	{
+		_data = .;
 		*(.data)
 	}
-
-	.bss BLOCK(4K) : ALIGN(4K)
+	
+	.bss ALIGN(4K) : AT (ADDR (.bss) - 0xC0000000)
 	{
+		_bss = .;
 		*(COMMON)
 		*(.bss)
+		*(.bootstrap_stack)
 	}
+	/* Symbol that indicates the end address of the kernel */
+	_kernel_end = .;
 }

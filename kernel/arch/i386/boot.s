@@ -17,24 +17,135 @@ stack_bottom:
 	.skip 16384 # 16 KiB stack
 stack_top:
 
+.section .bss, "aw", @nobits
+	.align 4096
+boot_page_directory:
+	.skip 4096
+boot_page_table1:
+	.skip 4096
+
 .section .text
 .global _start
 .type _start, @function
 _start:
+	/* Physical address of boot_page_table1 */
+	movl $(boot_page_table1 - 0xC0000000), %edi
+
+	/* Map address 0 first */
+	movl $0, %esi
+	/* Map 1023 pages. Page 1024 will be the VGA buffer */
+	movl $1023, %ecx
+
+1:
+	/* Only map the kernel */
+	cmpl $(_kernel_start - 0xC0000000), %esi
+	jl 2f
+	cmpl $(_kernel_end - 0xC0000000), %esi
+	jge 3f
+
+	/* Map physical addresses as present and writable.
+	 * @TODO: Ensure .text and .rodata are mapped as non-writable,
+	 * as this maps them as writable.
+	 */
+	movl %esi, %edx
+	orl $0x003, %edx
+	movl %edx, (%edi)
+
+2:
+	/* Size of a page is 4096 bytes */
+	addl $4096, %esi
+	/* An entry in boot_page_table1 is 4 bytes */
+	addl $4, %edi
+	/* Loop to next entry if we haven't yet finished */
+	loop 1b
+
+3:
+	/* Map VGA video memory */
+	movl $(0x000B8000 | 0x003), boot_page_table1 - 0xC0000000 + 1023 * 4
+
+	/* Map the page table to 0x0000000 and 0xC0000000 */
+	movl $(boot_page_table1 - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 0
+	movl $(boot_page_table1 - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 768 * 4
+
+	/* Set cr3 to boot_page_directory address */
+	movl $(boot_page_directory - 0xC0000000), %ecx
+	movl %ecx, %cr3
+
+	/* Enable paging and the write-protect bit */
+	movl %cr0, %ecx
+	orl $0x80010000, %ecx
+	movl %ecx, %cr0
+
+	/* Jump to higher half */
+	lea 4f, %ecx
+	jmp *%ecx
+
+	/* Paging setup complete */
+4:
+	/* Unmap identity mapping */
+	movl $0, boot_page_directory + 0
+
+	/* Reload crc3 to force a TLB flush so the changes to take effect. */
+	movl %cr3, %ecx
+	movl %ecx, %cr3
+
+	/* Set up the stack */
 	mov $stack_top, %esp
 
-	/* @TODO: Floating point init, enable paging, etc*/
+	/* Check CPUID availability by seeing if the ID bit in eflags can be changed */
+	pushfl
+	pop %eax
+
+	mov %ecx, %eax
+	
+	mov $(1<<21), %edx
+	xor %eax, %edx /* Flip ID bit */
+	
+	push %eax
+	popfl     /* Pop back into the flags register */
+
+	pushfl
+	pop %eax
+
+	push %ecx
+	popfl      /* Revert to original version */
+
+	xor %eax, %ecx
+	jz NoCPUID
+
+	/* @TODO: Floating point init, etc*/
 
 	call kernel_early_main
 
+	/* Constructor functions and global object constructors */
 	call _init
 
 	call kernel_main
 
+	/* Destructor functions and global object destructors */
 	call _fini
 	
 	cli
 _hang:	hlt
+	jmp _hang
+
+NoCPUID:
+	push %eax
+	movl $(0xC03FF000), %eax
+	movl $(0x4E | 0x7 << 8), (%eax)
+	add $2, %eax
+	movl $(0x6F | 0x7 << 8), (%eax)
+	add $4, %eax
+	movl $(0x43 | 0x7 << 8), (%eax)
+	add $2, %eax
+	movl $(0x50 | 0x7 << 8), (%eax)
+	add $2, %eax
+	movl $(0x55 | 0x7 << 8), (%eax)
+	add $2, %eax
+	movl $(0x49 | 0x7 << 8), (%eax)
+	add $2, %eax
+	movl $(0x44 | 0x7 << 8), (%eax)
+	pop %eax
 	jmp _hang
 
 .size _start, . - _start
