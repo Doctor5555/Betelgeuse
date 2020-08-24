@@ -1,14 +1,29 @@
 #include "uefi_print.h"
 
 #include "common.h"
+#include "uefi_file.h"
 
 static efi_system_table *st;
 
 static char hexchars[17] = "0123456789ABCDEF";
 static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
+static uint16_t hex8outstr[19] = u"00";
 
 static const uint16_t CHAR_BUF_MAX_LEN = 1024;
 static uint16_t println_char_wchar_buf[1024];
+
+efi_status echo_to_logfile(char16_t *msg, size_t len) {
+    efi_status status;
+    efi_file_protocol *file_handle;
+    char *buf;
+    size_t size;
+    status = file_open(st->BootServices, &file_handle, "b.txt", EFI_FILE_MODE_READ);
+    ERR(status);
+    status = file_read(st->BootServices, file_handle, &buf, &size);
+    ERR(status);
+
+    return status;
+}
 
 efi_status print_init(efi_system_table *st_in) {
     st = st_in;
@@ -24,6 +39,18 @@ efi_status print_hex64(char16_t *msg, size_t val) {
     status = st->ConOut->OutputString(st->ConOut, msg);
     ERR(status);
     status = st->ConOut->OutputString(st->ConOut, hex64outstr);
+    return status;
+}
+
+efi_status print_hex8(char16_t *msg, char val) {
+    efi_status status;
+    for (int8_t i = 1; i >= 0; i--) {
+        hex8outstr[i] = hexchars[val & 0b1111];
+        val = val >> 4;
+    }
+    status = st->ConOut->OutputString(st->ConOut, msg);
+    ERR(status);
+    status = st->ConOut->OutputString(st->ConOut, hex8outstr);
     return status;
 }
 
@@ -58,15 +85,23 @@ efi_status hexdump(char *msg, size_t length) {
     size_t val = 0;
     size_t i = 0;
     for (i; i < length; i += 8) {
-        val = msg[i+0] << 7 * 8 | 
-              msg[i+1] << 6 * 8 | 
-              msg[i+2] << 5 * 8 | 
-              msg[i+3] << 4 * 8 | 
-              msg[i+4] << 3 * 8 | 
-              msg[i+5] << 2 * 8 | 
-              msg[i+6] << 1 * 8 | 
-              msg[i+7] << 0 * 8;
-        status = print_hex64(L"", val);
+        status = print_hex8(L"", msg[i]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+1]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+2]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+3]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+4]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+5]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+6]);
+        ERR(status);
+        status = print_hex8(L" ", msg[i+7]);
+        ERR(status);
+        st->ConOut->OutputString(st->ConOut, u"\n\r");
         ERR(status);
     }
     return status;

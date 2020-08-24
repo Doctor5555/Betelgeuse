@@ -1,22 +1,27 @@
-typedef unsigned char bool;
-
-#include <efi/protocol/simple-text-output.h>
-
-#define ERR(x) if(EFI_ERROR((x))) return (x)
+#include <stdint.h>
 
 static char hexchars[17] = "0123456789ABCDEF";
-static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
+static uint16_t hex64outstr[20] = u"0000000000000000\n\r\0";
 
-size_t main(efi_simple_text_output_protocol *ConOut, int a, int b) {
-    int val = a + b;
+uint16_t *main(uint64_t a) {
+    /*int64_t val = 0xBE2E76E43E; // BETELGEUSE
 
-    efi_status status;
     for (int8_t i = 15; i >= 0; i--) {
         hex64outstr[i] = hexchars[val & 0b1111];
         val = val >> 4;
-    }
-    status = ConOut->OutputString(ConOut, L"Sum: ");
-    ERR(status);
-    status = ConOut->OutputString(ConOut, hex64outstr);
-    return status;
+    }*/
+
+    __asm__ __volatile__
+    (
+        "mov %%rbx, %0;"
+        : "=r" (a) :
+    );
+
+    //a = *(uint64_t*)a;
+
+    hex64outstr[0] = (a >> 48) & 0xFF;
+    hex64outstr[1] = (a >> 32) & 0xFF;
+    hex64outstr[2] = (a >> 16) & 0xFF;
+    hex64outstr[3] = (a >> 00) & 0xFF;
+    return hex64outstr;
 }

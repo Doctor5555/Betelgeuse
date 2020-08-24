@@ -4,7 +4,7 @@
 
 #include <efi/protocol/simple-file-system.h>
 
-efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, const char16_t *filename) {
+efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, const char16_t *filename, uint64_t open_mode) {
     efi_status status;
 
     size_t handle_count = 0;
@@ -55,7 +55,7 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
         status = root->GetInfo(root, &FileSystemInfoGuid, &fsinfosize, fsinfo);
         if (status == EFI_BUFFER_TOO_SMALL) {
             status = bs->AllocatePool(
-                EfiBootServicesData, 
+                EfiLoaderData, 
                 fsinfosize, 
                 &fsinfo);
             ERR(status);
@@ -78,7 +78,7 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
             root,
             file_handle,
             filename, 
-            EFI_FILE_MODE_READ,
+            open_mode,
             EFI_FILE_READ_ONLY | EFI_FILE_HIDDEN | EFI_FILE_SYSTEM);
         if (!EFI_ERROR(status)) {
             status = root->Close(root);
@@ -112,7 +112,7 @@ efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, void
     status = file_handle->GetInfo(file_handle, &FileInfoGuid, &finfosize, finfo);
     if (status == EFI_BUFFER_TOO_SMALL) {
         status = bs->AllocatePool(
-            EfiBootServicesData, 
+            EfiLoaderData, 
             finfosize, 
             &finfo);
         ERR(status);
@@ -131,7 +131,7 @@ efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, void
 
     *file_size = finfo->FileSize;
     status = bs->AllocatePool(
-            EfiBootServicesData, 
+            EfiLoaderData, 
             *file_size, 
             file_contents);
         ERR(status);
@@ -153,4 +153,8 @@ efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, void
 
 efi_status file_close(efi_file_protocol  *file_handle) {
     file_handle->Close(file_handle);
+}
+
+efi_status file_write(efi_file_protocol *file_handle, size_t len, char *buf) {
+    file_handle->Write(file_handle, len, buf);
 }
