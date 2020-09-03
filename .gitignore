@@ -1,3 +1,7 @@
 
 .DS_Store
 *.o
+bin/OVMF.fd
+*.bin
+*.iso
+*.img
