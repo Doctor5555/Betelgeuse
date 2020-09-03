@@ -43,7 +43,7 @@ $(TESTELF): $(TESTOBJS)
 
 elf_test: $(TESTELF)
 
-test: $(BOOTFILE) $(OVMF)
+test: $(BOOTFILE) $(OVMF) $(TESTELF)
 	$(EMU) $(EMUFLAGS)
 
 hdtest: $(OVMF) hd

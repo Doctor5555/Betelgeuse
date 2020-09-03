@@ -22,26 +22,6 @@ size_t strlen(const char *str) {
     return l;
 }
 
-/*
-#define EI_NIDENT        16
-typedef struct {
-    unsigned char  e_ident[EI_NIDENT];
-    Elf32_Half     e_type;
-    Elf32_Half     e_machine;
-    Elf32_Word     e_version;
-    Elf32_Addr     e_entry;
-    Elf32_Off      e_phoff;
-    Elf32_Off      e_shoff;
-    Elf32_Word     e_flags;
-    Elf32_Half     e_ehsize;
-    Elf32_Half     e_phentsize;
-    Elf32_Half     e_phnum;
-    Elf32_Half     e_shentsize;
-    Elf32_Half     e_shnum;
-    Elf32_Half     e_shstrndx;
-} Elf32_Ehdr;
-*/
-
 typedef unsigned char byte_t;
 
 typedef struct {
@@ -246,16 +226,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = print_hex64(u"elf_header->ident.data: ", elf_header->ident.data);
     ERR(status);
 
-/*
-    status = println_char(c_buf + 0, 1);
-    ERR(status);
-    status = println_char(c_buf + 1, 1);
-    ERR(status);
-    status = println_char(c_buf + 2, 1);
-    ERR(status);
-    status = println_char(c_buf + 3, 1);
-    ERR(status);*/
-
     char *elf_magic = "0ELF";
     elf_magic[0] = 0x7F;
     int equal = 1;
@@ -367,42 +337,26 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
     ERR(status);
 
-    typedef uint16_t*(*test_main)(uint64_t a);
+    typedef uint16_t*(*test_main)(uint64_t a, uint64_t b);
 
     test_main fn = elf_header->entry_addr;
     uint64_t a = 0xBE2E76E43E;
-    uint16_t b = 2;
-    uint16_t c = 3;
-    uint16_t d = 4;
-    uint16_t e = 5;
-    uint16_t f = 6;
-    uint16_t g = 7;
-    uint16_t h = 8;
-    uint16_t i = 9;
-    uint16_t j = 10;
-    uint16_t k = 11;
-    uint16_t l = 12;
-    uint16_t m = 13;
-    uint16_t n = 14;
-    uint16_t o = 15;
-    uint16_t p = 16;
-    uint16_t *str = fn(a);
-    //fn = testfn;
-    testfn(a);
+    uint64_t b = 2;
+    uint16_t *str = fn(a, b);
 
-/*
     status = print(u"fn() result: 0x");
     ERR(status);
     status = print(str);
-    ERR(status);*/
-
-    status = print_hex64(u"fn() result: 0x", ((size_t*)str)[0]);
     ERR(status);
 
     status = print_hex64(u"segment_pages[0]: 0x", segment_pages[0]);
     ERR(status);
     status = print_hex64(u"segment_pages[1]: 0x", segment_pages[1]);
     ERR(status);
+
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        status = st->BootServices->FreePages(segment_pages[i], 1);
+    }
 
     //status = hexdump(add_and_print, 0x46);
     ERR(status);
@@ -428,7 +382,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         ERR(status);
     }
 
-/*
     status = print_hex64(u"map_size: 0x", map_size);
     ERR(status);
     status = print_hex64(u"map_key: 0x", map_key);
@@ -444,8 +397,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = print_hex64(u"mem_map->Type: 0x", (size_t)mem_map->Type);
     ERR(status);
     status = print_hex64(u"mem_map->NumberOfPages: 0x", (size_t)mem_map->NumberOfPages);
-    ERR(status);*/
-
+    ERR(status);
 
     memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
 
