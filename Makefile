@@ -1,8 +1,8 @@
 CC		    := clang
 GCC			:= ~/opt/cross/bin/x86_64-elf-gcc
-LD		    := lld-link
+LD		    := /usr/local/opt/llvm/bin/lld-link
 GLD			:= ~/opt/cross/bin/x86_64-elf-ld
-EMU		    := qemu-system-x86_64
+EMU		    := /usr/local/opt/qemu/bin/qemu-system-x86_64
 MKGPT       := ~/dev/Archive/mkgpt/mkgpt
 MKISO       := xorriso
 
@@ -14,7 +14,7 @@ LDFLAGS		:= -subsystem:efi_application -nodefaultlib -dll
 OBJS	    := boot/uefi_boot.o boot/memcpy.o boot/guids.o boot/uefi_print.o boot/uefi_file.o
 BOOTFILE	:= bin/hdd/efi/boot/bootx64.efi
 
-TESTOBJS	:= elf_test/test.o
+TESTOBJS	:= elf_test/test_s.o
 TESTELF     := bin/hdd/test.out
 
 OVMF_URL	:= https://dl.bintray.com/no92/vineyard-binary/OVMF.fd
@@ -32,6 +32,9 @@ $(BOOTFILE): $(OBJS)
 $(TESTELF): $(TESTOBJS)
 	mkdir -p $(dir $@)
 	$(GCC) $(CFLAGS) -nodefaultlibs -emain -nostartfiles $^ -o $@
+
+%.o: %.s
+	nasm -f elf64 $< -o $@
 
 %st.o: %st.c
 	$(GCC) $(CFLAGS) -c $< -o $@
@@ -72,8 +75,6 @@ fatimg: $(BOOTFILE)
 	mmd -i fat.img ::/EFI
 	mmd -i fat.img ::/EFI/BOOT
 	mcopy -i fat.img $(BOOTFILE) ::/EFI/BOOT
-	mcopy -i fat.img bin/hdd/b.txt ::
-	mcopy -i fat.img bin/hdd/a.txt ::
 	mcopy -i fat.img bin/hdd/c.cfg ::
 	mcopy -i fat.img bin/hdd/test.out ::
 
@@ -82,6 +83,8 @@ $(OVMF):
 	wget $(OVMF_URL) -O $(OVMF) -qq
 
 clean:
+	rm -f $(TESTOBJS)
+	rm -f bin/hdd/test.out
 	rm -f $(BOOTFILE)
 	rm -f $(OBJS) $(OBJS:.o=.d)
 	rm -f fat.img cdimage.iso hdimage.bin

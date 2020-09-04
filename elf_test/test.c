@@ -3,7 +3,7 @@
 static char hexchars[17] = "0123456789ABCDEF";
 static uint16_t hex64outstr[20] = u"0000000000000000\n\r\0";
 
-uint16_t * __attribute__((stdcall)) main(uint64_t a, uint64_t b) {
+uint16_t * main(uint64_t a, uint64_t b) {
     /**** Convert UEFI calling convention to AMD64 ****/
     __asm__ __volatile__
     (
