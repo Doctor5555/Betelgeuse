@@ -5,3 +5,9 @@ bin/OVMF.fd
 *.bin
 *.iso
 *.img
+
+*.d
+
+bin/hdd/efi/boot/bootx64.efi
+
+bin/hdd/test.out
