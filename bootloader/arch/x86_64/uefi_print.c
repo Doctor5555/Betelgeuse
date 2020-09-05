@@ -6,7 +6,7 @@
 static efi_system_table *st;
 
 static char hexchars[17] = "0123456789ABCDEF";
-static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
+static uint16_t hex64outstr[19] = u"0000000000000000";
 static uint16_t hex8outstr[19] = u"00";
 
 static uint16_t println_char_wchar_buf[1024];
@@ -81,7 +81,7 @@ efi_status print_hex8(char16_t *msg, char val) {
 efi_status print(char16_t *msg) {
     efi_status status;
     status = st->ConOut->OutputString(st->ConOut, msg);
-    echo_to_logfile(msg, str16len(msg));
+    //echo_to_logfile(msg, str16len(msg));
     return status;
 }
 

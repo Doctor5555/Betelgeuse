@@ -43,9 +43,7 @@ size_t add_and_print(efi_simple_text_output_protocol *ConOut, int a, int b) {
     return status;
 }
 
-efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table *st_in,
-        void* image, size_t sz, void* ramdisk, size_t rsz) {
-
+efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table *st_in) {
     st = st_in;
     print_init(st);
 
@@ -55,11 +53,26 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
     ERR(status);
 
+    status = st->ConOut->SetMode(st->ConOut, 2);
+    ERR(status);
+
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
 
     status = st->ConOut->OutputString(st->ConOut, u"Hello, UEFI World!\n\r");
     ERR(status);
+
+/*
+    for (int32_t i = 0; i < st->ConOut->Mode->MaxMode; i++) {
+        print_hex64(u"Mode ", i);
+        int width;
+        int height;
+        status = st->ConOut->QueryMode(st->ConOut, i, &width, &height);
+        ERR(status);
+        print_hex64(u"Width ", width);
+        print_hex64(u"Height ", height);
+    }*/
+
 
     long long tst = 0;
     __asm__ __volatile__
@@ -69,8 +82,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     );
     if (tst == 0x11234567890) {
     } else {
-        status = st->ConOut->OutputString(st->ConOut, u"Long mode enabled!\n\r");
-        ERR(status);
         return EFI_UNSUPPORTED;
     }
 
@@ -82,7 +93,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     size_t config_pages;
     efi_physical_addr config_buf;
 
-    status = file_open(st->BootServices, &config_handle, u"boot.cfg", EFI_FILE_MODE_READ);
+    status = file_open(st->BootServices, &config_handle, u"boot/resourcesboot.cfg", EFI_FILE_MODE_READ);
     ERR(status);
     status = file_read(st->BootServices, config_handle, &config_buf, &config_size, &config_pages);
     ERR(status);
@@ -167,25 +178,51 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     memcpy(memmap_buf + sizeof(uint64_t), &num_descriptors, sizeof(uint64_t));
 
     print_hex64(u"Map size: 0x", map_size);
+    print(u"\n\r");
     print_hex64(u"Descriptor size: 0x", desc_size);
+    print(u"\n\r");
     print_hex64(u"sizeof(efi_memory_descriptor): 0x", sizeof(efi_memory_descriptor));
+    print(u"\n\r");
     print_hex64(u"Desc ver: 0x", desc_ver);
+    print(u"\n\r");
 
-    size_t num_printed = 0;
-    for (size_t i = 0; i < num_descriptors; i++) {
-        efi_memory_descriptor *descriptor = mem_map + i * desc_size;
-        if (descriptor->NumberOfPages | descriptor->PhysicalStart | descriptor->VirtualStart | descriptor->Type | descriptor->Attribute) {
-            print_hex64(u"descriptor ", i);
-            print_hex64(u"    descriptor->NumberOfPages = 0x", descriptor->NumberOfPages);
-            print_hex64(u"    descriptor->PhysicalStart = 0x", descriptor->PhysicalStart);
-            print_hex64(u"    descriptor->VirtualStart = 0x", descriptor->VirtualStart);
-            print_hex64(u"    descriptor->Type = 0x", descriptor->Type);
-            print_hex64(u"    descriptor->Attribute = 0x", descriptor->Attribute);
-            num_printed++;
-        }
+    {
+        efi_memory_descriptor *descriptor = mem_map + 3 * desc_size;
+        descriptor->NumberOfPages = 0x400;
+        descriptor->PhysicalStart = 0xFFC00000;
+        descriptor->VirtualStart = 0xFF800000;
+        descriptor->Type = ((efi_memory_descriptor*)(mem_map + desc_size))->Type;
+        descriptor->Attribute = ((efi_memory_descriptor*)(mem_map + desc_size))->Attribute;
     }
 
-    print_hex64(u"Num printed: 0x", num_printed);
+    size_t first_invalid = 0;
+    for (size_t i = 0; i < 0x17; i++) {
+        efi_memory_descriptor *descriptor = mem_map + i * desc_size;
+        if (descriptor->Type >= EfiMaxMemoryType) {
+            first_invalid = 0;
+            descriptor->Type = 0;
+            descriptor->PhysicalStart = 0;
+            descriptor->VirtualStart = 0;
+            descriptor->NumberOfPages = 0;
+            descriptor->Attribute = 0;
+        } else {
+            print_hex64(u"desc 0x", i);
+            print_hex64(u" phys 0x", descriptor->PhysicalStart);
+            print_hex64(u" virt 0x", descriptor->VirtualStart);
+            print_hex64(u", pages 0x", descriptor->NumberOfPages);
+            print(u"\n\r");
+        }
+    }
+    
+    st->BootServices->ExitBootServices(handle, map_key);
+
+    size_t mem_map_size = desc_size * num_descriptors;
+    st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
+
+/*
+    char16_t a[1];
+    a[0] = 'W' | (15 | 8 << 4) << 8;
+    print(a);*/
 
     //st->BootServices->SignalEvent()
 
@@ -212,7 +249,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
         program_table_entries[i].type;
 */
-
+/*
         //@TODO: Allocate enough memory to hold all the data
         status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
         ERR(status);
@@ -221,25 +258,22 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
                                 (void*)kernel_buf, 
                                 kernel_size);
 
-        segment_pages[i] = (void*)page_addr;
+        segment_pages[i] = (void*)page_addr;*/
     }
     //st->RuntimeServices.
-/*
-    size_t mem_map_size = desc_size * num_descriptors;
-    st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
-*/
 
-    status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
+
+    //status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
     ERR(status);
 
     typedef uint64_t(*kmain_t)();
     kmain_t kmain = (kmain_t)elf_header->entry_addr;
-    hexdump(kmain, 32);
-    uint64_t kernel_return_code = kmain();
+    //hexdump(kmain, 32);
+    //uint64_t kernel_return_code = kmain();
     
-    status = print(u"kmain() result: 0x");
+    //status = print(u"kmain() result: 0x");
     ERR(status);
-    status = print_hex64(u"", kernel_return_code);
+    //status = print_hex64(u"", kernel_return_code);
     ERR(status);
 
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
