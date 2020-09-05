@@ -9,20 +9,44 @@ static char hexchars[17] = "0123456789ABCDEF";
 static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
 static uint16_t hex8outstr[19] = u"00";
 
-static const uint16_t CHAR_BUF_MAX_LEN = 1024;
 static uint16_t println_char_wchar_buf[1024];
 
 efi_status echo_to_logfile(char16_t *msg, size_t len) {
     efi_status status;
     efi_file_protocol *file_handle;
-    char *buf;
+    efi_physical_addr buf;
+    size_t pages;
     size_t size;
-    status = file_open(st->BootServices, &file_handle, "b.txt", EFI_FILE_MODE_READ);
+    status = file_open(st->BootServices, &file_handle, u"b.txt", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE);
     ERR(status);
-    status = file_read(st->BootServices, file_handle, &buf, &size);
+    status = file_read(st->BootServices, file_handle, &buf, &size, &pages);
     ERR(status);
+    char16_t *char_buf = buf;
+    for (size_t i = 0; i < len; i++) {
+        char_buf[size] = msg[i];
+        size++;
+    }
 
+    status = file_write(file_handle, size, buf);
+    ERR(status);
+    status = file_close(file_handle);
+    ERR(status);
     return status;
+}
+
+size_t str16len(char16_t *msg) {
+    size_t len = 0;
+    while (msg[len] != 0) {
+        len++;
+    }
+    return len;
+}
+size_t strlen(char *msg) {
+    size_t len = 0;
+    while (msg[len] != 0) {
+        len++;
+    }
+    return len;
 }
 
 efi_status print_init(efi_system_table *st_in) {
@@ -57,6 +81,7 @@ efi_status print_hex8(char16_t *msg, char val) {
 efi_status print(char16_t *msg) {
     efi_status status;
     status = st->ConOut->OutputString(st->ConOut, msg);
+    echo_to_logfile(msg, str16len(msg));
     return status;
 }
 
@@ -82,9 +107,8 @@ efi_status println_char(char *msg, size_t length) {
 
 efi_status hexdump(char *msg, size_t length) {
     efi_status status;
-    size_t val = 0;
     size_t i = 0;
-    for (i; i < length; i += 8) {
+    for (; i < length; i += 8) {
         status = print_hex8(L"", msg[i]);
         ERR(status);
         status = print_hex8(L" ", msg[i+1]);

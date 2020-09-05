@@ -14,7 +14,7 @@ LDFLAGS		:= -subsystem:efi_application -nodefaultlib -dll
 OBJS	    := boot/uefi_boot.o boot/memcpy.o boot/guids.o boot/uefi_print.o boot/uefi_file.o
 BOOTFILE	:= bin/hdd/efi/boot/bootx64.efi
 
-TESTOBJS	:= elf_test/test_s.o
+TESTOBJS	:= elf_test/test.o
 TESTELF     := bin/hdd/test.out
 
 OVMF_URL	:= https://dl.bintray.com/no92/vineyard-binary/OVMF.fd

@@ -18,7 +18,7 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
 
     size_t i = 0;
 
-    for (i; i < handle_count; i++)
+    for (; i < handle_count; i++)
     {
         efi_simple_file_system_protocol *fs = NULL;
 
@@ -37,7 +37,7 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
             file_handle,
             filename, 
             open_mode,
-            EFI_FILE_READ_ONLY | EFI_FILE_HIDDEN | EFI_FILE_SYSTEM);
+            0);
         if (!EFI_ERROR(status)) {
             status = root->Close(root);
             ERR(status);
@@ -52,9 +52,10 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
     return EFI_SUCCESS;
 }
 
-efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, void **file_contents, size_t *file_size) {
+efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, efi_physical_addr *file_contents, size_t *file_size, size_t *pages) {
     efi_status status;
 
+    uint8_t need_free_finfo = 0;
     efi_file_info *finfo = NULL;
     size_t finfosize = sizeof(efi_file_info);
     status = file_handle->GetInfo(file_handle, &FileInfoGuid, &finfosize, finfo);
@@ -62,31 +63,38 @@ efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, void
         status = bs->AllocatePool(
             EfiLoaderData, 
             finfosize, 
-            &finfo);
+            (void**)&finfo);
         ERR(status);
         status = file_handle->GetInfo(file_handle, &FileInfoGuid, &finfosize, finfo);
         ERR(status);
+        need_free_finfo = 1;
     } else {
         ERR(status);
     }
 
     *file_size = finfo->FileSize;
-    status = bs->AllocatePool(
+    *pages = *file_size / 0x1000 + 1;
+    status = bs->AllocatePages(AllocateAnyPages, EfiLoaderData, *pages, file_contents);
+    /*status = bs->AllocatePool(
             EfiLoaderData, 
-            *file_size, 
-            file_contents);
-        ERR(status);
-
-    file_handle->Read(file_handle, file_size, *file_contents);
+            *file_size,
+            file_contents);*/
     ERR(status);
+
+    status = file_handle->Read(file_handle, file_size, *file_contents);
+    ERR(status);
+
+    if (need_free_finfo != 0) {
+        bs->FreePool(finfo);
+    }
 
     return EFI_SUCCESS;
 }
 
 efi_status file_close(efi_file_protocol  *file_handle) {
-    file_handle->Close(file_handle);
+    return file_handle->Close(file_handle);
 }
 
 efi_status file_write(efi_file_protocol *file_handle, size_t len, char *buf) {
-    file_handle->Write(file_handle, len, buf);
+    return file_handle->Write(file_handle, &len, buf);
 }

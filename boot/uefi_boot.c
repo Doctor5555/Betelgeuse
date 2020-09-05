@@ -8,77 +8,23 @@
 
 #include "memcpy.h"
 #include "uefi_print.h"
-//#include "uefi_file.h"
+#include "uefi_file.h"
+#include "uefi_elf.h"
 
+#undef ERR
 #define ERR(x) if(EFI_ERROR((x))) do { print_hex64(u"Error: 0x", (x)); return (x); } while (0)
 
 static unsigned char memmap_buf[32768];
+static char memmap_file_text[32768];
 
 static efi_system_table *st;
 
+/*
 size_t strlen(const char *str) {
     size_t l = 0;
     while (str[l] != '\0') l++;
     return l;
-}
-
-typedef unsigned char byte_t;
-
-typedef struct {
-    struct {
-        union {
-            uint32_t magic_num;
-            char magic_chars[4];
-        } magic_num;
-        byte_t class;
-        byte_t data;
-        byte_t version;
-        byte_t os_abi;
-        byte_t abi_ver;
-        byte_t unused_0[7];
-    } ident;
-    uint16_t obj_type;
-    uint16_t machine;
-    uint32_t version;
-    uint64_t entry_addr;
-    uint64_t prog_header_table_offset;
-    uint64_t section_table_offset;
-    uint32_t flags;
-    uint16_t header_size;
-    uint16_t prog_header_entry_size;
-    uint16_t prog_header_entry_num;
-    uint16_t section_header_entry_size;
-    uint16_t section_header_entry_num;
-    uint16_t shstrndx;
-} Elf64_header;
-
-typedef struct {
-    uint32_t type;
-    uint32_t flags;
-    uint64_t offset;
-    uint64_t vaddr;
-    uint64_t paddr;
-    uint64_t filesize;
-    uint64_t memsize;
-    uint64_t align;
-} Elf64_program_table_entry;
-
-typedef struct {
-    uint32_t name_offset;
-    uint32_t type;
-    uint64_t flags;
-    uint64_t addr;
-    uint64_t offset;
-    uint64_t size;
-    uint32_t link;
-    uint32_t info;
-    uint64_t align;
-    uint64_t entry_size;
-} Elf64_section_table_entry;
-
-uint16_t *testfn(uint64_t a) {
-    return a;
-}
+}*/
 
 static char hexchars[17] = "0123456789ABCDEF";
 static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
@@ -133,33 +79,38 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
     efi_file_protocol *config_handle;
     size_t config_size;
-    char *config_buf;
+    size_t config_pages;
+    efi_physical_addr config_buf;
 
     status = file_open(st->BootServices, &config_handle, u"boot.cfg", EFI_FILE_MODE_READ);
     ERR(status);
-    status = file_read(st->BootServices, config_handle, &config_buf, &config_size);
+    status = file_read(st->BootServices, config_handle, &config_buf, &config_size, &config_pages);
     ERR(status);
     status = file_close(config_handle);
     ERR(status);
 
-    status = println_char(config_buf, config_size);
+    status = println_char((char*)config_buf, config_size);
     ERR(status);
-    status = st->BootServices->FreePool(config_buf);
+
+    // @TODO: Use boot.cfg to configure launch of the kernel
+
+    status = st->BootServices->FreePages(config_buf, config_pages);
     ERR(status);
 
     efi_file_protocol *kernel_handle;
     size_t kernel_size;
-    char *kernel_buf;
+    size_t kernel_pages;
+    efi_physical_addr kernel_addr;
+
     status = file_open(st->BootServices, &kernel_handle, u"test.out", EFI_FILE_MODE_READ);
     ERR(status);
-
-    status = file_read(st->BootServices, kernel_handle, &kernel_buf, &kernel_size);
+    status = file_read(st->BootServices, kernel_handle, &kernel_addr, &kernel_size, &kernel_pages);
     ERR(status);
-
     status = file_close(kernel_handle);
     ERR(status);
 
-    Elf64_header *elf_header = kernel_buf;
+    char *kernel_buf = (char*)kernel_addr;
+    Elf64_header *elf_header = (Elf64_header *)kernel_buf;
 
     char* elf_magic = "0ELF";
     elf_magic[0] = 0x7F;
@@ -195,49 +146,12 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     Elf64_program_table_entry *program_table_entries = 
             (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
 
-    Elf64_section_table_entry *section_table_entries = 
-            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);
-
-    void *segment_pages[2];
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        uint64_t page_addr = program_table_entries[i].paddr - (program_table_entries[i].paddr) % 0x1000;
-
-        //@TODO: Allocate enough memory to hold all the data
-        status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
-        ERR(status);
-
-        st->BootServices->CopyMem((void*)page_addr, 
-                                (void*)kernel_buf, 
-                                kernel_size);
-
-        segment_pages[i] = page_addr;
-    }
-
-    status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
-    ERR(status);
-
-    typedef uint64_t(*test_main)(uint64_t a, uint64_t b);
-
-    test_main fn = elf_header->entry_addr;
-    uint64_t a = 0xBE2E76E43E;
-    uint64_t b = 2;
-    uint64_t str = fn(a, b);
-
-    status = print(u"fn() result: 0x");
-    ERR(status);
-    status = print_hex64(u"", str);
-    ERR(status);
-
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        status = st->BootServices->FreePages(segment_pages[i], 1);
-    }
-
-    status = st->BootServices->FreePool(kernel_buf);
-    ERR(status);
+    /*Elf64_section_table_entry *section_table_entries = 
+            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
     efi_memory_descriptor *mem_map = 
-        (efi_memory_descriptor *)(memmap_buf + sizeof(uint64_t));
-    size_t map_size = sizeof(memmap_buf) - sizeof(uint64_t);
+        (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
+    size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
     size_t map_key = 0;
     size_t desc_size = 0;
     uint32_t desc_ver = 0;
@@ -248,13 +162,96 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         ERR(print_status);
         ERR(status);
     }
-
+    size_t num_descriptors = map_size / desc_size;
     memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
+    memcpy(memmap_buf + sizeof(uint64_t), &num_descriptors, sizeof(uint64_t));
+
+    print_hex64(u"Map size: 0x", map_size);
+    print_hex64(u"Descriptor size: 0x", desc_size);
+    print_hex64(u"sizeof(efi_memory_descriptor): 0x", sizeof(efi_memory_descriptor));
+    print_hex64(u"Desc ver: 0x", desc_ver);
+
+    size_t num_printed = 0;
+    for (size_t i = 0; i < num_descriptors; i++) {
+        efi_memory_descriptor *descriptor = mem_map + i * desc_size;
+        if (descriptor->NumberOfPages | descriptor->PhysicalStart | descriptor->VirtualStart | descriptor->Type | descriptor->Attribute) {
+            print_hex64(u"descriptor ", i);
+            print_hex64(u"    descriptor->NumberOfPages = 0x", descriptor->NumberOfPages);
+            print_hex64(u"    descriptor->PhysicalStart = 0x", descriptor->PhysicalStart);
+            print_hex64(u"    descriptor->VirtualStart = 0x", descriptor->VirtualStart);
+            print_hex64(u"    descriptor->Type = 0x", descriptor->Type);
+            print_hex64(u"    descriptor->Attribute = 0x", descriptor->Attribute);
+            num_printed++;
+        }
+    }
+
+    print_hex64(u"Num printed: 0x", num_printed);
+
+    //st->BootServices->SignalEvent()
+
+    //st->BootServices->ExitBootServices(handle, map_key);
+
+    void *segment_pages[2];
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        uint64_t page_addr = program_table_entries[i].paddr - (program_table_entries[i].paddr) % 0x1000;
+/*
+        efi_memory_descriptor *descriptor = mem_map + num_descriptors * desc_size;
+        num_descriptors++;
+        descriptor->NumberOfPages = kernel_pages;
+        descriptor->PhysicalStart = kernel_addr;
+        descriptor->VirtualStart = page_addr;
+        descriptor->Type = EfiLoaderCode;
+        descriptor->Attribute = 0;
+
+        print_hex64(u"descriptor ", i);
+        print_hex64(u"    descriptor->NumberOfPages = 0x", descriptor->NumberOfPages);
+        print_hex64(u"    descriptor->PhysicalStart = 0x", descriptor->PhysicalStart);
+        print_hex64(u"    descriptor->VirtualStart = 0x", descriptor->VirtualStart);
+        print_hex64(u"    descriptor->Type = 0x", descriptor->Type);
+        print_hex64(u"    descriptor->Attribute = 0x", descriptor->Attribute);
+
+        program_table_entries[i].type;
+*/
+
+        //@TODO: Allocate enough memory to hold all the data
+        status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
+        ERR(status);
+
+        st->BootServices->CopyMem((void*)page_addr, 
+                                (void*)kernel_buf, 
+                                kernel_size);
+
+        segment_pages[i] = (void*)page_addr;
+    }
+    //st->RuntimeServices.
+/*
+    size_t mem_map_size = desc_size * num_descriptors;
+    st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
+*/
+
+    status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
+    ERR(status);
+
+    typedef uint64_t(*kmain_t)();
+    kmain_t kmain = (kmain_t)elf_header->entry_addr;
+    hexdump(kmain, 32);
+    uint64_t kernel_return_code = kmain();
+    
+    status = print(u"kmain() result: 0x");
+    ERR(status);
+    status = print_hex64(u"", kernel_return_code);
+    ERR(status);
+
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        status = st->BootServices->FreePages((efi_physical_addr)segment_pages[i], 1);
+    }
+
+    status = st->BootServices->FreePages(kernel_buf, kernel_pages);
+    ERR(status);
 
     status = st->ConOut->OutputString(st->ConOut, u"Application End!\n\r");
     ERR(status);
 
-end:
     while ((status = st->ConIn->ReadKeyStroke(st->ConIn, &key)) == EFI_NOT_READY);
     ERR(status);
     return EFI_SUCCESS;
