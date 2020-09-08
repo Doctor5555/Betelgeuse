@@ -7,6 +7,4 @@ for PROJECT in $PROJECTS; do
     (cd $PROJECT && DESTDIR="$SYSROOT" $MAKE clean)
 done
 
-typeset -i curr_ver=$(cat version)
-((curr_ver=curr_ver+1))
-echo $curr_ver > version 
+rm -rf bin/iso

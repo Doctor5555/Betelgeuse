@@ -52,6 +52,12 @@ efi_status file_open(efi_boot_services *bs, efi_file_protocol **file_handle, con
     return EFI_SUCCESS;
 }
 
+efi_status file_open_ex(efi_boot_services *bs, efi_file_protocol *root_handle, efi_file_protocol **file_handle, const char16_t *filename, uint64_t open_mode) {
+    efi_status status;
+    status = root_handle->Open(root_handle, file_handle, filename, open_mode, 0);
+    return status;
+}
+
 efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, efi_physical_addr *file_contents, size_t *file_size, size_t *pages) {
     efi_status status;
 

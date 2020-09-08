@@ -1,8 +1,27 @@
+/*
+uefi_boot.c
+Main file in the bootloader. This file is responsible for preparing and launching the kernel.
+Pipeline:
+
+Initial setup
+Test 64 bit support
+Open config file
+Parse config file @TODO
+Open and read font file @TODO
+Display boot meny @TODO @LOW
+Open selected kernel
+Retrieve and save memory map @TODO
+Exit boot services @TODO
+Launch selected kernel
+*/
+
 #include <efi/boot-services.h>
 #include <efi/runtime-services.h>
 #include <efi/system-table.h>
 #include <efi/types.h>
 #include <efi/protocol/simple-file-system.h>
+#include <efi/protocol/graphics-output.h>
+#include <psf.h>
 
 #include <stdbool.h>
 
@@ -10,12 +29,14 @@
 #include "uefi_print.h"
 #include "uefi_file.h"
 #include "uefi_elf.h"
+#include "boot_table.h"
 
 #undef ERR
 #define ERR(x) if(EFI_ERROR((x))) do { print_hex64(u"Error: 0x", (x)); return (x); } while (0)
 
-static unsigned char memmap_buf[32768];
-static char memmap_file_text[32768];
+static unsigned char memmap_buf[0x8000];
+static unsigned char psf_buf[0x8000];
+static struct boot_table boot_table;
 
 static efi_system_table *st;
 
@@ -62,18 +83,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->ConOut->OutputString(st->ConOut, u"Hello, UEFI World!\n\r");
     ERR(status);
 
-/*
-    for (int32_t i = 0; i < st->ConOut->Mode->MaxMode; i++) {
-        print_hex64(u"Mode ", i);
-        int width;
-        int height;
-        status = st->ConOut->QueryMode(st->ConOut, i, &width, &height);
-        ERR(status);
-        print_hex64(u"Width ", width);
-        print_hex64(u"Height ", height);
-    }*/
-
-
     long long tst = 0;
     __asm__ __volatile__
     (
@@ -89,12 +98,21 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
 
     efi_file_protocol *config_handle;
+    efi_file_protocol *boot_folder_handle;
+    efi_file_protocol *resource_folder_handle;
     size_t config_size;
     size_t config_pages;
     efi_physical_addr config_buf;
-
-    status = file_open(st->BootServices, &config_handle, u"boot/resourcesboot.cfg", EFI_FILE_MODE_READ);
+    
+    status = file_open(st->BootServices, &boot_folder_handle, u"boot", EFI_FILE_MODE_READ);
     ERR(status);
+    print(u"Opened /boot\n\r");
+    status = file_open_ex(st->BootServices, boot_folder_handle, &resource_folder_handle, u"resources", EFI_FILE_MODE_READ);
+    ERR(status);
+    print(u"Opened /boot/resources\n\r");
+    status = file_open_ex(st->BootServices, resource_folder_handle, &config_handle, u"boot.cfg", EFI_FILE_MODE_READ);
+    ERR(status);
+    print(u"Opened /boot/resources/boot.cfg\n\r");
     status = file_read(st->BootServices, config_handle, &config_buf, &config_size, &config_pages);
     ERR(status);
     status = file_close(config_handle);
@@ -108,12 +126,57 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->FreePages(config_buf, config_pages);
     ERR(status);
 
+    efi_file_protocol *font_handle;
+    size_t font_size;
+    size_t font_pages;
+    efi_physical_addr font_addr;
+
+    status = file_open_ex(st->BootServices, resource_folder_handle, &font_handle, u"aply16.psf", EFI_FILE_MODE_READ);
+    ERR(status);
+    status = file_read(st->BootServices, font_handle, &font_addr, &font_size, &font_pages);
+    ERR(status);
+    status = file_close(font_handle);
+    ERR(status);
+
+    char *font_buf = (char*)font_addr;
+    struct psf2_header *font_psf_header = (struct psf2_header*)font_addr;
+
+    if (PSF2_MAGIC_OK(font_psf_header->magic)) {
+    } else {
+        status = print(u"Invalid PSF2 file, exiting!\n\r");
+        ERR(status);
+        return EFI_INVALID_PARAMETER;
+    }
+
+    print_hex64(u"width 0x", font_psf_header->width);
+    print_hex64(u", height 0x", font_psf_header->height);
+    print_hex64(u", length 0x", font_psf_header->length);
+    print(u"\n\r");
+    print_hex64(u"charsize 0x", font_psf_header->charsize);
+    print_hex64(u", hdrsize 0x", font_psf_header->headersize);
+    print(u"\n\r");
+
+    if (font_pages > 0x8000 / 0x1000) {
+        print(u"PSF file is too large (>32768 bytes)\n\r");
+        return EFI_BUFFER_TOO_SMALL;
+    }
+
+    memcpy(psf_buf, font_addr, font_size);
+    if (PSF2_MAGIC_OK(psf_buf)) {
+    } else {
+        status = print(u"Copy failed!\n\r");
+        ERR(status);
+        return EFI_INVALID_PARAMETER;
+    }
+    status = st->BootServices->FreePages(font_addr, font_pages);
+    ERR(status);
+
     efi_file_protocol *kernel_handle;
     size_t kernel_size;
     size_t kernel_pages;
     efi_physical_addr kernel_addr;
 
-    status = file_open(st->BootServices, &kernel_handle, u"test.out", EFI_FILE_MODE_READ);
+    status = file_open_ex(st->BootServices, boot_folder_handle, &kernel_handle, u"betelgeuse.kernel", EFI_FILE_MODE_READ);
     ERR(status);
     status = file_read(st->BootServices, kernel_handle, &kernel_addr, &kernel_size, &kernel_pages);
     ERR(status);
@@ -123,17 +186,8 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     char *kernel_buf = (char*)kernel_addr;
     Elf64_header *elf_header = (Elf64_header *)kernel_buf;
 
-    char* elf_magic = "0ELF";
-    elf_magic[0] = 0x7F;
-    int equal = 1;
-    for (uint8_t i = 0; i < 4; i++) {
-        if (elf_magic[i] != kernel_buf[i]) {
-            equal = 0;
-            break;
-        }
-    }
-
-    if (equal) {
+    static const char* elf_magic = "\x7f""ELF";
+    if (ELF_MAGIC_OK(elf_header->ident.magic_num.magic_chars)) {
     } else {
         status = print(u"Invalid ELF file, exiting!\n\r");
         ERR(status);
@@ -142,14 +196,14 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
     if (elf_header->ident.class == 0x02) {
     } else {
-        status = print(u"Invalid ELF64 file, exiting!\n\r");
+        status = print(u"Invalid ELF64 file (elf_header->ident.class), exiting!\n\r");
         ERR(status);
         return EFI_INVALID_PARAMETER;
     }
 
     if (elf_header->machine == 0x3E) {
     } else {
-        status = print(u"Invalid ELF64 file, exiting!\n\r");
+        status = print(u"Invalid ELF64 file (elf_header->machine), exiting!\n\r");
         ERR(status);
         return EFI_INVALID_PARAMETER;
     }
@@ -157,9 +211,183 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     Elf64_program_table_entry *program_table_entries = 
             (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
 
-    /*Elf64_section_table_entry *section_table_entries = 
-            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
+    Elf64_section_table_entry *section_table_entries = 
+            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);
 
+    /*for (size_t i = 0; i < elf_header->section_header_entry_num; i++) {
+        print_hex64(u"section addr 0x", section_table_entries[i].addr);
+        print_hex64(u", type 0x", section_table_entries[i].type);
+        print_hex64(u", offset 0x", section_table_entries[i].offset);
+        print(u"\n\r");
+    }*/
+
+    print_hex64(u"psf_buf: 0x", psf_buf);
+    print(u"\n\r");
+    void *segment_pages[2];
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        uint64_t page_addr = program_table_entries[i].vaddr - (program_table_entries[i].vaddr) % 0x1000;
+        print_hex64(u"i: 0x", i);
+        print_hex64(u", addr: 0x", page_addr);
+        print_hex64(u", off: 0x", program_table_entries[i].offset);
+        print_hex64(u", typ: 0x", program_table_entries[i].type);
+        print(u"\n\r");
+        // @TODO: Make the virtual addresses actually virtually addressed?
+        // @TODO: Allocate enough memory to hold all the data
+        
+        status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
+        if (status != EFI_SUCCESS) {
+            print_hex64(u"Error: 0x", (status));
+            return status;
+        }
+
+        st->BootServices->CopyMem((void*)page_addr, 
+                                (void*)(kernel_buf + program_table_entries[i].offset), 
+                                kernel_size - program_table_entries[i].offset);
+
+        segment_pages[i] = (void*)page_addr;
+    }
+
+    size_t gop_handle_count = 0;
+    efi_handle *gop_handles = NULL;
+    status = st->BootServices->LocateHandleBuffer(ByProtocol, 
+            &GraphicsOutputProtocol, 
+            NULL, 
+            &gop_handle_count, 
+            &gop_handles);
+
+    ERR(status);
+    print_hex64(u"gop handle count: ", gop_handle_count);
+    print(u"\n\r");
+
+    efi_graphics_output_protocol *graphics_output = NULL;
+    status = st->BootServices->HandleProtocol(gop_handles[1], &GraphicsOutputProtocol, (void**)&graphics_output);
+    ERR(status);
+    size_t mode_size = 0;
+    efi_graphics_output_mode_information *mode_info = NULL;
+    size_t res_1280x720 = graphics_output->Mode->MaxMode + 1;
+    for (size_t i = 0; i < graphics_output->Mode->MaxMode; i++) {
+        status = graphics_output->QueryMode(graphics_output, i, &mode_size, &mode_info);
+        if (status == EFI_BUFFER_TOO_SMALL) {
+            status = st->BootServices->AllocatePool(EfiLoaderData, mode_size, &mode_info);
+            ERR(status);
+            status = graphics_output->QueryMode(graphics_output, i, &mode_size, &mode_info);
+            ERR(status);
+        } else {
+            ERR(status);
+        }
+        /*print_hex64(u"w 0x", mode_info->HorizontalResolution);
+        print_hex64(u", h 0x", mode_info->VerticalResolution);
+        print_hex64(u", px fmt 0x", mode_info->PixelFormat);
+        print_hex64(u", scn 0x", mode_info->PixelsPerScanLine);
+        print(u"\n\r");*/
+        if (mode_info->HorizontalResolution == 0x500 &&
+            (mode_info->HorizontalResolution * 9) / 16 == mode_info->VerticalResolution) {
+            print_hex64(u"1280x720 mode index: 0x", i);
+            print(u"\n\r");
+            res_1280x720 = i;
+            boot_table.graphics_mode.width = 1280;
+            boot_table.graphics_mode.height = 720;
+            boot_table.graphics_mode.px_per_scan = mode_info->PixelsPerScanLine;
+            break;
+        }
+        status = st->BootServices->FreePool(mode_info);
+        ERR(status);
+        mode_size = 0;
+    }
+
+    if (res_1280x720 == graphics_output->Mode->MaxMode + 1) {
+        print(u"Error: 1280x720 resolution not supported!");
+        return EFI_UNSUPPORTED;
+    }
+    
+    graphics_output->SetMode(graphics_output, res_1280x720);
+    status = st->ConOut->SetMode(st->ConOut, 2);
+    ERR(status);
+    status = st->ConOut->ClearScreen(st->ConOut);
+    ERR(status);
+
+    boot_table.graphics_mode.framebuffer_base = graphics_output->Mode->FrameBufferBase;
+    boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
+
+    print_hex64(u"Max graphics mode: ", graphics_output->Mode->MaxMode);
+    print_hex64(u", Frambuffer size: ", graphics_output->Mode->FrameBufferSize);
+    print_hex64(u", pixel format: 0x", mode_info->PixelFormat);
+    print(u"\n\r");
+
+    status = st->BootServices->FreePool(mode_info);
+    ERR(status);
+
+    status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
+    ERR(status);
+    print(u"\n\r");
+
+    efi_memory_descriptor *mem_map = 
+        (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
+    size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
+    size_t map_key = 0;
+    size_t desc_size = 0;
+    uint32_t desc_ver = 0;
+    status = st->BootServices->GetMemoryMap(
+        &map_size, mem_map, &map_key, &desc_size, &desc_ver);
+    if (status != EFI_SUCCESS) {
+        efi_status print_status = st->ConOut->OutputString(st->ConOut, u"Failed to retrieve memory map!\n\r");
+        ERR(print_status);
+        ERR(status);
+    }
+    size_t num_descriptors = map_size / desc_size;
+    memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
+    memcpy(memmap_buf + sizeof(uint64_t), &num_descriptors, sizeof(uint64_t));
+
+    boot_table.mem_table_ptr = memmap_buf;
+    boot_table.font_ptr = psf_buf;
+
+    status = st->BootServices->ExitBootServices(handle, map_key);
+    ERR(status);
+
+    typedef uint64_t(*kmain_t)(struct boot_table *table);
+    kmain_t kmain = (kmain_t)elf_header->entry_addr;
+    uint64_t kernel_return_code = kmain(&boot_table);
+    
+    /*
+    status = print(u"kmain() result: 0x");
+    ERR(status);
+    status = print_hex64(u"", kernel_return_code);
+    ERR(status);
+    print(u"\n\r");
+
+    print_hex64(u"Expectd result: 0x", gop_handles);
+    print(u"\n\r");*/
+
+    return EFI_SUCCESS;
+}
+
+/*
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        status = st->BootServices->FreePages((efi_physical_addr)segment_pages[i], 1);
+    }
+/*
+    status = st->BootServices->FreePages(kernel_addr, kernel_pages);
+    ERR(status);
+
+    print(u"Freed kernel!\n\r");
+
+end:
+    status = file_close(boot_folder_handle);
+    ERR(status);
+    status = file_close(resource_folder_handle);
+    ERR(status);
+
+    status = st->ConOut->OutputString(st->ConOut, u"Application End!\n\r");
+    ERR(status);
+    status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
+    while (status == EFI_NOT_READY) {
+        status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
+    }
+    ERR(status);
+    return EFI_SUCCESS;
+}
+*/
+/*
     efi_memory_descriptor *mem_map = 
         (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
     size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
@@ -218,7 +446,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
     size_t mem_map_size = desc_size * num_descriptors;
     st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
-
+*/
 /*
     char16_t a[1];
     a[0] = 'W' | (15 | 8 << 4) << 8;
@@ -227,66 +455,3 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     //st->BootServices->SignalEvent()
 
     //st->BootServices->ExitBootServices(handle, map_key);
-
-    void *segment_pages[2];
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        uint64_t page_addr = program_table_entries[i].paddr - (program_table_entries[i].paddr) % 0x1000;
-/*
-        efi_memory_descriptor *descriptor = mem_map + num_descriptors * desc_size;
-        num_descriptors++;
-        descriptor->NumberOfPages = kernel_pages;
-        descriptor->PhysicalStart = kernel_addr;
-        descriptor->VirtualStart = page_addr;
-        descriptor->Type = EfiLoaderCode;
-        descriptor->Attribute = 0;
-
-        print_hex64(u"descriptor ", i);
-        print_hex64(u"    descriptor->NumberOfPages = 0x", descriptor->NumberOfPages);
-        print_hex64(u"    descriptor->PhysicalStart = 0x", descriptor->PhysicalStart);
-        print_hex64(u"    descriptor->VirtualStart = 0x", descriptor->VirtualStart);
-        print_hex64(u"    descriptor->Type = 0x", descriptor->Type);
-        print_hex64(u"    descriptor->Attribute = 0x", descriptor->Attribute);
-
-        program_table_entries[i].type;
-*/
-/*
-        //@TODO: Allocate enough memory to hold all the data
-        status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
-        ERR(status);
-
-        st->BootServices->CopyMem((void*)page_addr, 
-                                (void*)kernel_buf, 
-                                kernel_size);
-
-        segment_pages[i] = (void*)page_addr;*/
-    }
-    //st->RuntimeServices.
-
-
-    //status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
-    ERR(status);
-
-    typedef uint64_t(*kmain_t)();
-    kmain_t kmain = (kmain_t)elf_header->entry_addr;
-    //hexdump(kmain, 32);
-    //uint64_t kernel_return_code = kmain();
-    
-    //status = print(u"kmain() result: 0x");
-    ERR(status);
-    //status = print_hex64(u"", kernel_return_code);
-    ERR(status);
-
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        status = st->BootServices->FreePages((efi_physical_addr)segment_pages[i], 1);
-    }
-
-    status = st->BootServices->FreePages(kernel_buf, kernel_pages);
-    ERR(status);
-
-    status = st->ConOut->OutputString(st->ConOut, u"Application End!\n\r");
-    ERR(status);
-
-    while ((status = st->ConIn->ReadKeyStroke(st->ConIn, &key)) == EFI_NOT_READY);
-    ERR(status);
-    return EFI_SUCCESS;
-}

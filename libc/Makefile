@@ -1,13 +1,13 @@
 DEFAULT_HOST!=../default-host.sh
 HOST?=$(DEFAULT_HOST)
-HOSTARCH!=../target-triplet-to-arch.sh $(HOST)
- 
+HOSTARCH?=../target-triplet-to-arch.sh $(HOST)
+
 CFLAGS?=-O2 -g
 CPPFLAGS?=
 LDFLAGS?=
 LIBS?=
  
-DESTDIR?=
+DESTDIR?=../sysroot
 PREFIX?=/usr/local
 EXEC_PREFIX?=$(PREFIX)
 INCLUDEDIR?=$(PREFIX)/include
@@ -19,9 +19,9 @@ LIBK_CFLAGS:=$(CFLAGS)
 LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk
  
 ARCHDIR=arch/$(HOSTARCH)
- 
+
 include $(ARCHDIR)/make.config
- 
+
 CFLAGS:=$(CFLAGS) $(ARCH_CFLAGS)
 CPPFLAGS:=$(CPPFLAGS) $(ARCH_CPPFLAGS)
 LIBK_CFLAGS:=$(LIBK_CFLAGS) $(KERNEL_ARCH_CFLAGS)
@@ -83,7 +83,8 @@ install: install-headers install-libs
  
 install-headers:
 	mkdir -p $(DESTDIR)$(INCLUDEDIR)
-	cp -R --preserve=timestamps include/. $(DESTDIR)$(INCLUDEDIR)/.
+	cp -R -p include/. $(DESTDIR)$(INCLUDEDIR)/.
+	#cp -R --preserve=timestamps include/. $(DESTDIR)$(INCLUDEDIR)/.
  
 install-libs: $(BINARIES)
 	mkdir -p $(DESTDIR)$(LIBDIR)

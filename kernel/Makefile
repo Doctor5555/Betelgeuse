@@ -1,6 +1,6 @@
 DEFAULT_HOST!=../default-host.sh
 HOST?=$(DEFAULT_HOST)
-HOSTARCH!=../target-triplet-to-arch.sh $(HOST)
+HOSTARCH?=../target-triplet-to-arch.sh $(HOST)
 
 CFLAGS?=-O2 -g
 CPPFLAGS?=
@@ -19,7 +19,7 @@ CPPFLAGS := $(CPPFLAGS) -D__is_kernel -Iinclude
 LDFLAGS  := $(LDFLAGS)
 LIBS     := $(LIBS) -nostdlib -L$(DESTDIR)$(PREFIX)/lib -lk -lgcc
 
-ARCHDIR=arch/$(HOSTARCH)
+ARCHDIR:=arch/x86_64
 
 include $(ARCHDIR)/make.config
 
@@ -79,8 +79,10 @@ install: install-headers install-kernel
 install-headers:
 	mkdir -p $(DESTDIR)$(INCLUDEDIR)
 	mkdir -p $(DESTDIR)$(BOOTDIR)$(RESDIR)
-	cp -R --preserve=timestamps include/. $(DESTDIR)$(INCLUDEDIR)/.
-	cp -R --preserve=timestamps resources/. $(DESTDIR)$(BOOTDIR)$(RESDIR)/.
+	cp -R -p include/. $(DESTDIR)$(INCLUDEDIR)/.
+	cp -R -p resources/. $(DESTDIR)$(BOOTDIR)$(RESDIR)/.
+	#cp -R --preserve=timestamps include/. $(DESTDIR)$(INCLUDEDIR)/.
+	#cp -R --preserve=timestamps resources/. $(DESTDIR)$(BOOTDIR)$(RESDIR)/.
 
 install-kernel: betelgeuse.kernel
 	echo $(DESTDIR)$(BOOTDIR)

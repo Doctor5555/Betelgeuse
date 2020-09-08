@@ -6,6 +6,14 @@ typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 typedef unsigned long long uint64_t;
 
+#define ELF_MAGIC0	0x7F
+#define ELF_MAGIC1	0x45 // 'E'
+#define ELF_MAGIC2  0x4c // 'L'
+#define ELF_MAGIC3  0x46 // 'F'
+
+#define ELF_MAGIC_OK(x) ((x)[0]==ELF_MAGIC0 && (x)[1]==ELF_MAGIC1 \
+				&& (x)[2]==ELF_MAGIC2 && (x)[3]==ELF_MAGIC3)
+
 typedef struct Elf64_header_t {
     struct {
         union {

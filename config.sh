@@ -5,7 +5,8 @@ echo "$PATH" | grep -q "$HOME/opt/cross/bin" && echo "" || export PATH="$HOME/op
 
 export MAKE=${MAKE:-make}
 export HOST=${HOST:-$(./default-host.sh)}
- 
+export HOSTARCH=${HOSTARCH:-$(./target-triplet-to-arch.sh $HOST)}
+
 export AR=${HOST}-ar
 export AS=${HOST}-as
 export CC=${HOST}-gcc

@@ -3,8 +3,12 @@ global _start
 section .text
 
 _start:
-    xor rax, rax
-    mov rax, 0xBE2E76E43E
-    ret
+    mov rdi, rcx
+    extern kmain
+    call kmain
+
+    cli
+.loop:
+    jmp .loop
 
 .size: equ $ - _start

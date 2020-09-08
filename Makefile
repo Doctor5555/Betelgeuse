@@ -1,4 +1,4 @@
-EMU		    := qemu-system-x86_64
+EMU		    := /usr/local/opt/qemu/bin/qemu-system-x86_64
 MKGPT       := ~/dev/Archive/mkgpt/mkgpt
 MKISO 		:= xorriso
 
@@ -10,18 +10,18 @@ BOOTFILE := bin/iso/efi/boot/bootx64.efi
 
 .PHONY: install build iso test isotest usbtest writeusb hd hdtest fatimg clean
 
+build: install
+	./build.sh
+	mkdir -p bin/iso/boot
+	cp -r sysroot/boot bin/iso/
+	
 clean:
 	./clean.sh
 
 install:
 	./headers.sh
 
-build:
-	./build.sh
-	mkdir -p bin/iso/boot
-	cp -r sysroot/boot bin/iso/
-
-test: install $(OVMF) $(TESTELF)
+test: build $(OVMF) $(TESTELF)
 	$(EMU) $(EMUFLAGS)
 
 isotest: iso
@@ -44,7 +44,7 @@ usbtest: writeusb
 writeusb: fatimg
 	sudo dd if=betelgeuse.img of=/dev/sdb bs=1M
 
-fatimg: install
+fatimg: build
 	dd if=/dev/zero of=betelgeuse.img bs=1k count=1440
 	mformat -i betelgeuse.img -f 1440 ::
 	mmd -i betelgeuse.img ::/EFI
