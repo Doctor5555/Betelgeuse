@@ -138,7 +138,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = file_close(font_handle);
     ERR(status);
 
-    char *font_buf = (char*)font_addr;
+    unsigned char *font_buf = (unsigned char*)font_addr;
     struct psf2_header *font_psf_header = (struct psf2_header*)font_addr;
 
     if (PSF2_MAGIC_OK(font_psf_header->magic)) {
@@ -221,8 +221,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         print(u"\n\r");
     }*/
 
-    print_hex64(u"psf_buf: 0x", psf_buf);
-    print(u"\n\r");
     void *segment_pages[2];
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         uint64_t page_addr = program_table_entries[i].vaddr - (program_table_entries[i].vaddr) % 0x1000;
@@ -321,6 +319,18 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
     print(u"\n\r");
 
+    hexdump(psf_buf + 
+            ((struct psf2_header*)psf_buf)->headersize + 
+            'C' * ((struct psf2_header*)psf_buf)->charsize,
+            16);
+    
+    struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
+    print_hex64(u"char width 0x", psf_header_ptr->width);
+    print_hex64(u", char height 0x", psf_header_ptr->height);
+
+    status = st->ConOut->ClearScreen(st->ConOut);
+    ERR(status);
+
     efi_memory_descriptor *mem_map = 
         (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
     size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
@@ -365,12 +375,12 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         status = st->BootServices->FreePages((efi_physical_addr)segment_pages[i], 1);
     }
-/*
+
     status = st->BootServices->FreePages(kernel_addr, kernel_pages);
     ERR(status);
 
-    print(u"Freed kernel!\n\r");
-
+    print(u"Freed kernel!\n\r");*/
+/*
 end:
     status = file_close(boot_folder_handle);
     ERR(status);
