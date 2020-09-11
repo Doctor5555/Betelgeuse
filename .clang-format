@@ -1,0 +1,27 @@
+---
+Language:        Cpp
+AccessModifierOffset: -2
+AlignAfterOpenBracket: AlwaysBreak
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+#AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BasedOnStyle: Chromium
+ColumnLimit:     88
+ContinuationIndentWidth: 4
+ForEachMacros: ['FLAG_SET', 'FLAG_NOT_SET']
+IndentCaseLabels: false
+IndentGotoLabels: true
+IndentWidth:     4
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Left
+ReflowComments:  true
+SortIncludes:    true
+SpaceAfterCStyleCast: true
+#SpaceBeforeParens: ControlStatementsExceptForEachMacros
+SpacesBeforeTrailingComments: 2
+TabWidth:        4
+#...
+

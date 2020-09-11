@@ -87,7 +87,7 @@ efi_status file_read(efi_boot_services *bs, efi_file_protocol *file_handle, efi_
             file_contents);*/
     ERR(status);
 
-    status = file_handle->Read(file_handle, file_size, *file_contents);
+    status = file_handle->Read(file_handle, file_size, (void*)*file_contents);
     ERR(status);
 
     if (need_free_finfo != 0) {

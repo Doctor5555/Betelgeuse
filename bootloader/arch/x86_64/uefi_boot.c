@@ -40,13 +40,6 @@ static struct boot_table boot_table;
 
 static efi_system_table *st;
 
-/*
-size_t strlen(const char *str) {
-    size_t l = 0;
-    while (str[l] != '\0') l++;
-    return l;
-}*/
-
 static char hexchars[17] = "0123456789ABCDEF";
 static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
 
@@ -148,14 +141,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         return EFI_INVALID_PARAMETER;
     }
 
-    print_hex64(u"width 0x", font_psf_header->width);
-    print_hex64(u", height 0x", font_psf_header->height);
-    print_hex64(u", length 0x", font_psf_header->length);
-    print(u"\n\r");
-    print_hex64(u"charsize 0x", font_psf_header->charsize);
-    print_hex64(u", hdrsize 0x", font_psf_header->headersize);
-    print(u"\n\r");
-
     if (font_pages > 0x8000 / 0x1000) {
         print(u"PSF file is too large (>32768 bytes)\n\r");
         return EFI_BUFFER_TOO_SMALL;
@@ -224,11 +209,11 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     void *segment_pages[2];
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         uint64_t page_addr = program_table_entries[i].vaddr - (program_table_entries[i].vaddr) % 0x1000;
-        print_hex64(u"i: 0x", i);
+        /*print_hex64(u"i: 0x", i);
         print_hex64(u", addr: 0x", page_addr);
         print_hex64(u", off: 0x", program_table_entries[i].offset);
         print_hex64(u", typ: 0x", program_table_entries[i].type);
-        print(u"\n\r");
+        print(u"\n\r");*/
         // @TODO: Make the virtual addresses actually virtually addressed?
         // @TODO: Allocate enough memory to hold all the data
         
@@ -252,10 +237,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
             NULL, 
             &gop_handle_count, 
             &gop_handles);
-
     ERR(status);
-    print_hex64(u"gop handle count: ", gop_handle_count);
-    print(u"\n\r");
 
     efi_graphics_output_protocol *graphics_output = NULL;
     status = st->BootServices->HandleProtocol(gop_handles[1], &GraphicsOutputProtocol, (void**)&graphics_output);
@@ -307,26 +289,14 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     boot_table.graphics_mode.framebuffer_base = graphics_output->Mode->FrameBufferBase;
     boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
 
-    print_hex64(u"Max graphics mode: ", graphics_output->Mode->MaxMode);
-    print_hex64(u", Frambuffer size: ", graphics_output->Mode->FrameBufferSize);
-    print_hex64(u", pixel format: 0x", mode_info->PixelFormat);
-    print(u"\n\r");
-
     status = st->BootServices->FreePool(mode_info);
     ERR(status);
 
-    status = print_hex64(u"elf_header->entry_addr: 0x", elf_header->entry_addr);
+    status = print_hex64(u"Kernel entry address: 0x", elf_header->entry_addr);
     ERR(status);
     print(u"\n\r");
-
-    hexdump(psf_buf + 
-            ((struct psf2_header*)psf_buf)->headersize + 
-            'C' * ((struct psf2_header*)psf_buf)->charsize,
-            16);
     
     struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
-    print_hex64(u"char width 0x", psf_header_ptr->width);
-    print_hex64(u", char height 0x", psf_header_ptr->height);
 
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
@@ -357,6 +327,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     typedef uint64_t(*kmain_t)(struct boot_table *table);
     kmain_t kmain = (kmain_t)elf_header->entry_addr;
     uint64_t kernel_return_code = kmain(&boot_table);
+
+    return EFI_SUCCESS;
+}
     
     /*
     status = print(u"kmain() result: 0x");
@@ -367,9 +340,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
     print_hex64(u"Expectd result: 0x", gop_handles);
     print(u"\n\r");*/
-
-    return EFI_SUCCESS;
-}
 
 /*
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {

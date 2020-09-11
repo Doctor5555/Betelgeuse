@@ -3,6 +3,7 @@
 #include <types.h>
 #include <kernel/psf.h>
 #include <kernel/boot_table.h>
+#include <string.h>
 
 static size_t char_width;
 static size_t char_height;
@@ -14,8 +15,8 @@ static size_t framebuffer_size;
 static u32 fg_colour = 0x00FFFFFF;
 static u32 bg_colour = 0x00000000;
 
-static size_t cursor_x;
-static size_t cursor_y;
+static size_t terminal_column;
+static size_t terminal_row;
 static size_t TERMINAL_WIDTH; // Only set once in terminal_init, defines the number of characters across the terminal width
 static size_t TERMINAL_HEIGHT; // Only set once in terminal_init, defines the number of lines in the terminal
 
@@ -33,51 +34,61 @@ int terminal_init(struct boot_table *boot_table) {
     framebuffer_size = boot_table->graphics_mode.framebuffer_size;
     TERMINAL_WIDTH = screen_width / char_width;
     TERMINAL_HEIGHT = screen_height / char_height;
-    cursor_x = 0;
-    cursor_y = 0;
+    terminal_column = 0;
+    terminal_row = 0;
     return 0;
 }
 
-void terminal_colour(u32 fg, u32 bg) {
+void terminal_setcolour(u32 fg, u32 bg) {
     fg_colour = fg;
     bg_colour = bg;
 }
 
-void terminal_write(unsigned char *msg, size_t len) {
+void terminal_writestring(unsigned char *data) {
+    terminal_write(data, strlen(data));
+}
+
+void terminal_write(unsigned char *data, size_t len) {
     for (size_t i = 0; i < len; i++) {
-        switch (msg[i]) {
+        switch (data[i]) {
         case '\n':
-            cursor_y++;
+            terminal_row++;
             break;
         case '\r':
-            cursor_x = 0;
+            terminal_column = 0;
             break;
         case '\t':
-            cursor_x += 4 - (cursor_x % 4);
+            terminal_column += 4 - (terminal_column % 4);
             break;
         default: {
-            if (0x20 <= msg[i] && msg[i] < 0xFF) {
-                terminal_putchar(msg[i], cursor_x, cursor_y, fg_colour, bg_colour);
-                cursor_x++;
+            if (0x20 <= data[i] && data[i] < 0xDC) { // Printable range for current font. @TODO: make dynamic with unicode check?
+                terminal_putchar(data[i]);
             }
             break;
         }
         }
-        if (cursor_x >= TERMINAL_WIDTH) {
-            cursor_x = 0;
-            cursor_y++;
+    }
+}
+
+void terminal_putchar(unsigned char c) {
+    terminal_putentryat(c, terminal_column, terminal_row, fg_colour, bg_colour);
+    if (++terminal_column == TERMINAL_WIDTH) {
+        terminal_column = 0;
+        if (++terminal_row == TERMINAL_HEIGHT) {
+            terminal_row = 0;
         }
     }
 }
 
-void terminal_putchar(unsigned char c, size_t x, size_t y, u32 fg, u32 bg) {
+void terminal_putentryat(unsigned char c, size_t column, size_t row, u32 fg, u32 bg) {
     char *c_pixels = font_buffer + 
             ((struct psf2_header*)font_buffer)->headersize + 
             c * ((struct psf2_header*)font_buffer)->charsize;
     for (unsigned int i = 0; i < char_height; i++) {
         unsigned int mask = 1 << (char_width - 1);
         for (unsigned int j = 0; j < char_width; j++) {
-            *(framebuffer + (y * 16 + i) * screen_width + x * 8 + j) = (c_pixels[i] & mask) ? fg : bg;
+            *(framebuffer + (row * 16 + i) * screen_width + column * 8 + j) = (c_pixels[i] & mask) ? fg : bg;
+            mask >>= 1;
         }
     }
 }

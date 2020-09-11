@@ -8,9 +8,9 @@ EMUISOFLAGS := -L bin/ -bios OVMF.fd -cdrom betelgeuse.iso
 
 BOOTFILE := bin/iso/efi/boot/bootx64.efi
 
-.PHONY: install build iso test isotest usbtest writeusb hd hdtest fatimg clean
+.PHONY: headers build iso test isotest usbtest writeusb hd hdtest fatimg clean
 
-build: install
+build: headers
 	./build.sh
 	mkdir -p bin/iso/boot
 	cp -r sysroot/boot bin/iso/
@@ -18,7 +18,7 @@ build: install
 clean:
 	./clean.sh
 
-install:
+headers:
 	./headers.sh
 
 test: build $(OVMF) $(TESTELF)
