@@ -1,6 +1,7 @@
 #include <kernel/boot_table.h>
 #include <kernel/tty.h>
 #include <stdio.h>
+#include <string.h>
 #include <types.h>
 
 void early_kmain(struct boot_table *boot_table) {
@@ -9,6 +10,16 @@ void early_kmain(struct boot_table *boot_table) {
 
 __attribute__ ((constructor)) void constructor_test() {
     terminal_writestring("Hello, Constructor World!\n\r");
+}
+
+__attribute__ ((noinline))
+int ssp_test(const char *test) {
+    int len = strlen(test);
+    char dest[3];
+    for (int i = 0; i < len; i++) {
+        dest[i] = test[i];
+    }
+    return dest[2] & test[1];
 }
 
 u64 kmain(struct boot_table *boot_table) {
@@ -35,6 +46,11 @@ u64 kmain(struct boot_table *boot_table) {
     }
     printf("\n\rHello, Printf World %#05x!\n\r", 5000);
     printf("\n\rHello, Printf World 2!\n\r");
+
+    ssp_test("12");
+    printf("Done ssp test 1 with 12!\n\r");
+    ssp_test("Hello, Worlddsjkfghaskdhjfgasuiytg43iu57yqt34787qahgaeit784hit87f4yo87qg43gahwr87w4gi87orwaotw47tco27t4x8ba74c2684tcyr87antn24x3ntx87a3ywcknraw7tykvw37iayrxieugfau7wxt478aigweszt78hbawesgviydiawbszyiwtbhkgesivdo7GEUabk2qjuagiwefubkh2qiagwye78FIYwahtbj2qagiwyeFWahbjt2qwegiybht4kegiwySwabhkt42gisVYDhbrk23kfewgivydlstgeybhk2qktegwyiSDV&Tigeuwkt4bh2wgurls7dvtˆ©ukwbht42giuwe79tvdigeukbht2.37dtv9igeukbht4eguiktbhj4eguwisd;'opu[gpra[2]3otu2 ]wi4yvnOY@$^({*BYNVT&@$*NCN&T@{$98cY&#{N(*O&V[t48vwyt8v'w4tN*NYc984wty!");
+    printf("Done ssp test 2 with Hello, World!!\n\r");
     //printf("Number of chars: %d Yay!\n\r", n_chars);
     /*
     for (u32 i = 0x2; i < 0x10; i += 0x1) {

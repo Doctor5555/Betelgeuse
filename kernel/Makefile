@@ -14,7 +14,7 @@ BOOTDIR?=$(EXEC_PREFIX)/boot
 INCLUDEDIR?=$(PREFIX)/include
 RESDIR?=/resources
 
-CFLAGS   := $(CFLAGS) -ffreestanding -Wall -Wextra
+CFLAGS   := $(CFLAGS) -ffreestanding -Wall -Wextra -fstack-protector-all
 CPPFLAGS := $(CPPFLAGS) -D__is_kernel -Iinclude
 LDFLAGS  := $(LDFLAGS)
 LIBS     := $(LIBS) -nostdlib -L$(DESTDIR)$(PREFIX)/lib -lk -lgcc
@@ -30,7 +30,8 @@ LIBS     := $(LIBS) $(KERNEL_ARCH_LIBS)
 
 KERNEL_OBJS=\
 $(KERNEL_ARCH_OBJS) \
-kernel/kernel.o 
+kernel/kernel.o \
+kernel/panic.o
 
 CRTI_OBJ=crti.o
 CRTBEGIN_OBJ:=$(shell $(CC) $(CFLAGS) -print-file-name=crtbegin.o)
