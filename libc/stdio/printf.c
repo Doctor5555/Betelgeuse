@@ -16,6 +16,7 @@ enum FormatType {
     Int16,
     Int10,
     Int8,
+    Int2,
     UInt10,
     String,
     Percent,
@@ -201,6 +202,9 @@ int printf(const char* restrict format, ...) {
                 break;
             case 'o':
                 format_type = Int8;
+                break;
+            case 'b':
+                format_type = Int2;
                 break;
             case 's':
                 format_type = String;
@@ -432,7 +436,8 @@ int printf(const char* restrict format, ...) {
                     }
             } break;
             case Int16:
-            case Int8: {
+            case Int8:
+            case Int2: {
                 unsigned long long num;
                 switch (format_length) {
                 case HalfHalf: {
@@ -503,7 +508,7 @@ int printf(const char* restrict format, ...) {
                             num_chars_written++;
                             exp++;
                         }
-                } else {
+                } else if (format_type == Int8) {
                     if (num_prefix) {
                         putchar('0');
                         num_chars_written++;
@@ -535,6 +540,53 @@ int printf(const char* restrict format, ...) {
                     } else
                         while (val > 1) {
                             val >>= 3;
+                            putchar(
+                                capitals ? chars_upper[num / val]
+                                         : chars_lower[num / val]);
+                            num_chars_written++;
+                            num %= val;
+                        }
+                    if (left_aligned)
+                        while (exp > 0) {
+                            putchar(' ');
+                            num_chars_written++;
+                        }
+                } else if (format_type == Int2) {
+                    if (num_prefix) {
+                        putchar('0');
+                        num_chars_written++;
+                        putchar('b');
+                        num_chars_written++;
+                        if (format_width > 1) {
+                            format_width -= 1;
+                        } else {
+                            format_width = 0;
+                        }
+                    }
+                    const char* chars_upper = "01";
+                    const char* chars_lower = "01";
+                    size_t exp = 0;
+                    size_t val = 1;
+                    while (true) {
+                        exp++;
+                        val <<= 1;
+                        if (val > num) {
+                            break;
+                        }
+                    }
+                    char zfill_char = zero_fill ? '0' : ' ';
+                    if (!left_aligned)
+                        while ((signed long long) (format_width - exp) > 0) {
+                            putchar(zfill_char);
+                            num_chars_written++;
+                            exp++;
+                        }
+                    if (num == 0) {
+                        putchar('0');
+                        num_chars_written++;
+                    } else
+                        while (val > 1) {
+                            val >>= 1;
                             putchar(
                                 capitals ? chars_upper[num / val]
                                          : chars_lower[num / val]);
