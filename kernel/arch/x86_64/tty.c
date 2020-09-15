@@ -52,13 +52,22 @@ void terminal_write(unsigned char *data, size_t len) {
     for (size_t i = 0; i < len; i++) {
         switch (data[i]) {
         case '\n':
-            terminal_row++;
+            if (++terminal_row == TERMINAL_HEIGHT) {
+                terminal_row = 0;
+                terminal_column = 0;
+            }
             break;
         case '\r':
             terminal_column = 0;
             break;
         case '\t':
             terminal_column += 4 - (terminal_column % 4);
+            if (terminal_column == TERMINAL_WIDTH) {
+                terminal_column = 0;
+                if (++terminal_row == TERMINAL_HEIGHT) {
+                    terminal_row = 0;
+                }
+            }
             break;
         default: {
             if (0x20 <= data[i] && data[i] < 0xDC) { // Printable range for current font. @TODO: make dynamic with unicode check?
