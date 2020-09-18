@@ -1,5 +1,12 @@
 global _start
 
+struc boot_table
+    .mem_table_ptr resb 8
+    .font_ptr resb 8
+    .kernel_start_ptr resb 8
+    .graphics_mode resb 40
+endstruc
+
 section .text
 
 _start:

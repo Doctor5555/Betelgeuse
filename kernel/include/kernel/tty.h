@@ -10,4 +10,7 @@ void terminal_write(unsigned char *str, size_t len);
 void terminal_putchar(unsigned char c);
 void terminal_putentryat(unsigned char c, size_t column, size_t row, unsigned int fg, unsigned int bg);
 
+void terminal_newline();
+void terminal_cursor(size_t x, size_t y);
+
 #endif /* _TTY_H */

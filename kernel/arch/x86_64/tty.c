@@ -101,3 +101,21 @@ void terminal_putentryat(unsigned char c, size_t column, size_t row, u32 fg, u32
         }
     }
 }
+
+void terminal_newline() {
+    if (++terminal_row == TERMINAL_HEIGHT) {
+        terminal_row = 0;
+        terminal_column = 0;
+    }
+}
+
+void terminal_cursor(size_t x, size_t y) {
+    terminal_column = x;
+    terminal_row = y;
+    if (terminal_column >= TERMINAL_WIDTH) {
+        terminal_column = 0;
+    }
+    if (terminal_row >= TERMINAL_HEIGHT) {
+        terminal_row = 0;
+    }
+}

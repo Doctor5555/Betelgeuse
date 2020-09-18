@@ -32,7 +32,7 @@ Launch selected kernel
 #include "boot_table.h"
 
 #undef ERR
-#define ERR(x) if(EFI_ERROR((x))) do { print_hex64(u"Error: 0x", (x)); return (x); } while (0)
+#define ERR(x) if(EFI_ERROR((x))) do { print_hex64(u"Error: 0x", (x)); print(u"\n\r"); goto end; } while (0)
 
 static unsigned char memmap_buf[0x8000];
 static unsigned char psf_buf[0x8000];
@@ -52,7 +52,7 @@ size_t add_and_print(efi_simple_text_output_protocol *ConOut, int a, int b) {
         val = val >> 4;
     }
     status = ConOut->OutputString(ConOut, u"Sum: ");
-    ERR(status);
+    if(EFI_ERROR((status))) do { print_hex64(u"Error: 0x", (status)); return status; } while (0);
     status = ConOut->OutputString(ConOut, hex64outstr);
     return status;
 }
@@ -76,6 +76,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->ConOut->OutputString(st->ConOut, u"Hello, UEFI World!\n\r");
     ERR(status);
 
+    /* Check 64 bit mode */
     long long tst = 0;
     __asm__ __volatile__
     (
@@ -90,6 +91,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->ConIn->Reset(st->ConIn, false);
     ERR(status);
 
+    /* Open /boot/resources/boot.cfg */
     efi_file_protocol *config_handle;
     efi_file_protocol *boot_folder_handle;
     efi_file_protocol *resource_folder_handle;
@@ -119,6 +121,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->FreePages(config_buf, config_pages);
     ERR(status);
 
+    /* Open the font from /boot/resources */
     efi_file_protocol *font_handle;
     size_t font_size;
     size_t font_pages;
@@ -134,6 +137,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     unsigned char *font_buf = (unsigned char*)font_addr;
     struct psf2_header *font_psf_header = (struct psf2_header*)font_addr;
 
+    /* Check it is a valid font */
     if (PSF2_MAGIC_OK(font_psf_header->magic)) {
     } else {
         status = print(u"Invalid PSF2 file, exiting!\n\r");
@@ -156,6 +160,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->FreePages(font_addr, font_pages);
     ERR(status);
 
+    print(u"Done font!\n\r");
+
+    /* Open the kernel ELF binary */
     efi_file_protocol *kernel_handle;
     size_t kernel_size;
     size_t kernel_pages;
@@ -171,6 +178,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     char *kernel_buf = (char*)kernel_addr;
     Elf64_header *elf_header = (Elf64_header *)kernel_buf;
 
+    /* Check the kernel is actually an ELF binary */
     static const char* elf_magic = "\x7f""ELF";
     if (ELF_MAGIC_OK(elf_header->ident.magic_num.magic_chars)) {
     } else {
@@ -193,18 +201,14 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         return EFI_INVALID_PARAMETER;
     }
 
+    print(u"Done kernel!\n\r");
+
+    /* Parse the kernel header and load it to the correct memory location */
     Elf64_program_table_entry *program_table_entries = 
             (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
 
     Elf64_section_table_entry *section_table_entries = 
             (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);
-
-    /*for (size_t i = 0; i < elf_header->section_header_entry_num; i++) {
-        print_hex64(u"section addr 0x", section_table_entries[i].addr);
-        print_hex64(u", type 0x", section_table_entries[i].type);
-        print_hex64(u", offset 0x", section_table_entries[i].offset);
-        print(u"\n\r");
-    }*/
 
     void *segment_pages[2];
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
@@ -230,6 +234,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         segment_pages[i] = (void*)page_addr;
     }
 
+    /* Locate the graphics output protocol*/
     size_t gop_handle_count = 0;
     efi_handle *gop_handles = NULL;
     status = st->BootServices->LocateHandleBuffer(ByProtocol, 
@@ -242,6 +247,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     efi_graphics_output_protocol *graphics_output = NULL;
     status = st->BootServices->HandleProtocol(gop_handles[1], &GraphicsOutputProtocol, (void**)&graphics_output);
     ERR(status);
+    print(u"Done find graphics protocol!\n\r");
+
+    /* Search for and set graphics mode with resolution 1280x720 */
     size_t mode_size = 0;
     efi_graphics_output_mode_information *mode_info = NULL;
     size_t res_1280x720 = graphics_output->Mode->MaxMode + 1;
@@ -255,20 +263,19 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         } else {
             ERR(status);
         }
-        /*print_hex64(u"w 0x", mode_info->HorizontalResolution);
-        print_hex64(u", h 0x", mode_info->VerticalResolution);
-        print_hex64(u", px fmt 0x", mode_info->PixelFormat);
-        print_hex64(u", scn 0x", mode_info->PixelsPerScanLine);
-        print(u"\n\r");*/
-        if (mode_info->HorizontalResolution == 0x500 &&
-            (mode_info->HorizontalResolution * 9) / 16 == mode_info->VerticalResolution) {
-            print_hex64(u"1280x720 mode index: 0x", i);
+        
+        if (mode_info->HorizontalResolution == 0x500) {
+            print_hex64(u"Mode index: 0x", i);
+            print_hex64(u", Width: 0x", mode_info->HorizontalResolution);
+            print_hex64(u", Height: 0x", mode_info->VerticalResolution);
             print(u"\n\r");
-            res_1280x720 = i;
-            boot_table.graphics_mode.width = 1280;
-            boot_table.graphics_mode.height = 720;
+            /*if ((mode_info->HorizontalResolution * 9) / 16 == mode_info->VerticalResolution)
+                res_1280x720 = i;*/
+            if (mode_info->VerticalResolution == 0x320)
+                res_1280x720 = i;
+            boot_table.graphics_mode.width = 0x500;
+            boot_table.graphics_mode.height = 0x320;
             boot_table.graphics_mode.px_per_scan = mode_info->PixelsPerScanLine;
-            break;
         }
         status = st->BootServices->FreePool(mode_info);
         ERR(status);
@@ -285,25 +292,34 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
+    print(u"Changed resolution!\n\r");
 
+    /* Set boot table framebuffer pointer */
     boot_table.graphics_mode.framebuffer_base = graphics_output->Mode->FrameBufferBase;
     boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
 
-    status = st->BootServices->FreePool(mode_info);
-    ERR(status);
+    /*status = st->BootServices->FreePool(mode_info);
+    ERR(status);*/
 
     status = print_hex64(u"Kernel entry address: 0x", elf_header->entry_addr);
     ERR(status);
     print(u"\n\r");
+
+    boot_table.kernel_start_ptr = (unsigned long long)elf_header->entry_addr;
+    status = print_hex64(u"Kernel entry address: 0x", boot_table.kernel_start_ptr);
+    print(u"\n\r");
+    if (boot_table.kernel_start_ptr == 0)
+        goto end;
     
     struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
 
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
 
+    /* Retrieve the memory map */
     efi_memory_descriptor *mem_map = 
-        (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
-    size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
+        (efi_memory_descriptor *)memmap_buf;
+    size_t map_size = sizeof(memmap_buf);
     size_t map_key = 0;
     size_t desc_size = 0;
     uint32_t desc_ver = 0;
@@ -314,13 +330,16 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         ERR(print_status);
         ERR(status);
     }
-    size_t num_descriptors = map_size / desc_size;
-    memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
-    memcpy(memmap_buf + sizeof(uint64_t), &num_descriptors, sizeof(uint64_t));
+    size_t desc_count = map_size / desc_size;
+    /*memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
+    memcpy(memmap_buf + sizeof(uint64_t), &desc_count, sizeof(uint64_t));*/
 
     boot_table.mem_table_ptr = memmap_buf;
+    boot_table.mem_desc_size = desc_size;
+    boot_table.mem_desc_count = desc_count;
     boot_table.font_ptr = psf_buf;
 
+    /* Exit boot services and call the kernel */
     status = st->BootServices->ExitBootServices(handle, map_key);
     ERR(status);
 
@@ -328,6 +347,22 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     kmain_t kmain = (kmain_t)elf_header->entry_addr;
     uint64_t kernel_return_code = kmain(&boot_table);
 
+    return EFI_SUCCESS;
+
+    /* Pre-exit-boot-services abort */
+end:
+    status = file_close(boot_folder_handle);
+    ERR(status);
+    status = file_close(resource_folder_handle);
+    ERR(status);
+
+    status = st->ConOut->OutputString(st->ConOut, u"Application End!\n\r");
+    ERR(status);
+    status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
+    while (status == EFI_NOT_READY) {
+        status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
+    }
+    ERR(status);
     return EFI_SUCCESS;
 }
     
@@ -350,23 +385,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
 
     print(u"Freed kernel!\n\r");*/
-/*
-end:
-    status = file_close(boot_folder_handle);
-    ERR(status);
-    status = file_close(resource_folder_handle);
-    ERR(status);
 
-    status = st->ConOut->OutputString(st->ConOut, u"Application End!\n\r");
-    ERR(status);
-    status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
-    while (status == EFI_NOT_READY) {
-        status = st->ConIn->ReadKeyStroke(st->ConIn, &key);
-    }
-    ERR(status);
-    return EFI_SUCCESS;
-}
-*/
 /*
     efi_memory_descriptor *mem_map = 
         (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
@@ -381,9 +400,9 @@ end:
         ERR(print_status);
         ERR(status);
     }
-    size_t num_descriptors = map_size / desc_size;
+    size_t desc_count = map_size / desc_size;
     memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
-    memcpy(memmap_buf + sizeof(uint64_t), &num_descriptors, sizeof(uint64_t));
+    memcpy(memmap_buf + sizeof(uint64_t), &desc_count, sizeof(uint64_t));
 
     print_hex64(u"Map size: 0x", map_size);
     print(u"\n\r");
@@ -424,7 +443,7 @@ end:
     
     st->BootServices->ExitBootServices(handle, map_key);
 
-    size_t mem_map_size = desc_size * num_descriptors;
+    size_t mem_map_size = desc_size * desc_count;
     st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
 */
 /*

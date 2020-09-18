@@ -5,7 +5,10 @@
 
 struct boot_table {
     void *mem_table_ptr;
+    size_t mem_desc_size;
+    size_t mem_desc_count;
     void *font_ptr;
+    unsigned long long kernel_start_ptr;
     struct {
         size_t width;
         size_t height;
