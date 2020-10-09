@@ -37,7 +37,6 @@ enum Length {
 };
 
 int printf(const char* restrict format, ...) {
-    // @TODO: Implement printf
     va_list args;
     va_start(args, format);
     size_t fmt_len = strlen(format);

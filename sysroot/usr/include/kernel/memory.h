@@ -100,21 +100,11 @@ struct PT_entry {
 #define PML4_OFFSET 39
 #define CANONICAL_OFFSET 48
 
-#define OFFSETS_TO_ADDR(pml4, pdp, pd, pt) ((((pml4) & 0x8000 ? 0xffff : 0x0) << CANONICAL_OFFSET) | \
-                                             ((pml4) << PML4_OFFSET) | \
-                                             ((pdp)  << PDP_OFFSET) | \
-                                             ((pd)   << PD_OFFSET) | \
-                                             ((pt)   << PT_OFFSET))
-
-/*
-typedef struct addr {
-    unsigned long long page_offset:12;
-    unsigned long long pt_offset  : 9;
-    unsigned long long pd_offset  : 9;
-    unsigned long long pdp_offset : 9;
-    unsigned long long pml4_offset: 9;
-    unsigned long long sign_extend:16;
-} addr;*/
+#define OFFSETS_TO_ADDR(pml4, pdp, pd, pt) ((((uint64_t)(pml4) & 0x8000 ? 0xffffUL : 0x0UL) << CANONICAL_OFFSET) | \
+                                             ((uint64_t)(pml4) << PML4_OFFSET) | \
+                                             ((uint64_t)(pdp)  << PDP_OFFSET) | \
+                                             ((uint64_t)(pd)   << PD_OFFSET) | \
+                                             ((uint64_t)(pt)   << PT_OFFSET))
 
 /* 
  * Returns: none

@@ -1,10 +1,19 @@
 ENTRY(_start)
 
-KERNEL_VMA = 0x80000;
+KERNEL_PMA = 0x00080000;
+KERNEL_VMA = 0x00000000;
 
 SECTIONS
 {
-    . = KERNEL_VMA;
+    . = KERNEL_PMA;
+
+    .start : {
+        _start = .;
+        *(.start)
+        . = ALIGN(4096);
+    }
+
+    . += KERNEL_VMA;
 
     .text : AT(ADDR(.text) - KERNEL_VMA)
     {

@@ -9,13 +9,13 @@
 
 struct boot_table boot_table;
 
-void early_kmain(struct boot_table *boot_table_ptr) {
+void __attribute__((__section__(".start"))) early_kmain(struct boot_table *boot_table_ptr) {
     boot_table = *boot_table_ptr;
     terminal_init(boot_table_ptr);
 }
 
 __attribute__ ((constructor)) void constructor_test() {
-    terminal_writestring("Hello, Constructor World!\n\r");
+    terminal_writestring((unsigned char *)"Hello, Constructor World!\n\r");
 }
 
 __attribute__ ((noinline))
@@ -71,8 +71,8 @@ u64 kmain() {
 */
 
     //efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
-    u64 descriptor_size = boot_table.mem_desc_size;
-    u64 descriptor_count = boot_table.mem_desc_count;
+    //u64 descriptor_size = boot_table.mem_desc_size;
+    //u64 descriptor_count = boot_table.mem_desc_count;
 
     //terminal_cursor(0, 0);
 
@@ -100,9 +100,23 @@ u64 kmain() {
     //*/
 
     struct PML4_entry *pml4 = (struct PML4_entry*)a;
+
+    uint8_t *new_map = (uint8_t *)0x1400000UL;
+    uint8_t *old_map = (uint8_t *)0x7bff000UL;
+    uint64_t map_size = 0x201 << 12;
+
+    for (uint64_t i = 0; i < map_size; i++) {
+        new_map[i] = old_map[i];
+    }
+
+    pml4 = (void*)new_map + ((void*)pml4 - (void*)old_map);
+    printf("pml4: %#018llx\n\r", pml4);
+
     printf("CR4 address: %#018llx, and -(1 << 12): %#018llx\n\r", pml4, (u64)pml4 - (1 << 12));
     //pml4 = (u64)pml4 - (1 << 12);
     printf("CR4 address: %#018llx, and -(1 << 12): %#018llx\n\r", pml4, (u64)pml4 - (1 << 12));
+
+#define old_addr_to_new_map(x) ((uint64_t)((void*)new_map + ((void*)((x) << 12) - (void*)old_map)) >> 12)
 
     //*
     u64 present_PML4_entries = 0;
@@ -113,39 +127,59 @@ u64 kmain() {
     char found_non_present_pt = 0;
     char found_last_pt = 0;
     char found_last_pd = 0;
+    uint64_t highest_addr = 0;
     for (int i = 0; i < 512; i++) {
         if (pml4[i].P) {
+            if ((uint64_t)&pml4[i] > highest_addr) {
+                highest_addr = (uint64_t)&pml4[i];
+            }
             present_PML4_entries++;
             printf("PML4: Entry %#x is present, with value %#018llx and address %#08llx      \n\r", i, *(u64*)(pml4 + i), pml4[i].addr);
-            struct PDP_entry *pdp = (struct PDP_entry*) (pml4[i].addr << 12);// - (1 << 12);
+            pml4[i].addr = old_addr_to_new_map((uint64_t)pml4[i].addr);
+            printf("PML4: Entry %#x is present, with value %#018llx and address %#08llx      \n\r", i, *(u64*)(pml4 + i), pml4[i].addr);
+            struct PDP_entry *pdp = (struct PDP_entry*)(uint64_t)(pml4[i].addr << 12);// - (1 << 12);
             for (int j = 0; j < 512; j++) {
                 if (pdp[j].P) {
+                    if ((uint64_t)&pdp[j] > highest_addr) {
+                        highest_addr = (uint64_t)&pdp[j];
+                    }
                     present_PDP_entries++;
+                    pdp[j].addr = old_addr_to_new_map((uint64_t)pdp[j].addr);
                     //printf("PDP: Entry %#x is present, with value %#016llx and address %#08llx\n\r", i, *(u64*)(pdp + i), pdp[i].addr);
-                    struct PD_entry_2M *pd = (struct PD_entry_2M*) (pdp[j].addr << 12);// - (1 << 12);
+                    struct PD_entry_2M *pd = (struct PD_entry_2M*)(uint64_t)(pdp[j].addr << 12);// - (1 << 12);
                     for (int k = 0; k < 512; k++) {
                         if (pd[k].P) {
+                            if ((uint64_t)&pd[k] > highest_addr) {
+                                highest_addr = (uint64_t)&pd[k];
+                            }
                             present_PD_entries++;
                             if (pd[k].PS) {
                                 present_PD_entries_2++;
                             } else {
-                                struct PD_entry_4K *pd_4K = (struct PD_entry_4K*) (pdp[j].addr << 12);// - (1 << 12);
+                                struct PD_entry_4K *pd_4K = (struct PD_entry_4K*)(uint64_t)(pdp[j].addr << 12);// - (1 << 12);
+                                //pd_4K->addr = old_addr_to_new_map(pd_4K->addr);
                                 printf("Not PS bit set indexes: %#x, %#x, %#x   \n\r", i, j, k);
-                                struct PT_entry *pt = (struct PT_entry*) (pd_4K[k].addr << 12);// - (1 << 12);
+                                struct PT_entry *pt = (struct PT_entry*)(uint64_t)(pd_4K[k].addr << 12);// - (1 << 12);
+                                printf("pt page addr: %#018llx    \n\r", pt);
                                 for (int l = 0; l < 512; l++) {
                                     if (pt[l].P) {
+                                        if ((uint64_t)&pt[l] > highest_addr) {
+                                            //highest_addr = &pt[l];
+                                            if (l == 511) {
+                                                printf("Highest PT entry addr: %#018llx    \n\r", pd[l].addr);
+                                            }
+                                        }
                                         if (!present_PT_entries) {
                                             printf("First PT entry: %#018llx      \n\r", pt[l].addr);
                                             printf("Second PT entry: %#018llx      \n\r", pt[l+1].addr);
                                         }
-                                        if (pt[l].addr == 5);
                                         present_PT_entries++;
                                     } else if (!found_non_present_pt) {
                                         found_non_present_pt = 1;
                                         printf("First not present PT entry: index %#x, pd %#x, pdp %#x, pml4 %#x     \n\r", l, k, j, i);
                                     }
                                     if (present_PT_entries == 0x400 && !found_last_pt) {
-                                        uint64_t curr_addr = OFFSETS_TO_ADDR(i, j, k, l);
+                                        //uint64_t curr_addr = OFFSETS_TO_ADDR(i, j, k, l);
                                         printf("%#x, %#x, %#x, %#x, %#018llx, %#018llx, %#018llx     \n\r", i, j, k, l, pt[l].addr, &(pt[l]), 0);
                                         found_last_pt = 1;
                                     }
@@ -153,7 +187,7 @@ u64 kmain() {
                             }
                             if (present_PD_entries == 0x8000 && !found_last_pd) {
                                 found_last_pd = 1;
-                                uint64_t curr_addr = OFFSETS_TO_ADDR(i, j, k, 0);
+                                //uint64_t curr_addr = OFFSETS_TO_ADDR(i, j, k, 0);
                                 printf("%#x, %#x, %#x, %#018llx, %#018llx, %#018llx     \n\r", i, j, k, pd[k].addr, &(pd[k]), 0);
                             }
                         }
@@ -167,23 +201,33 @@ u64 kmain() {
     printf("present_PD_entries: %#010llx     \n\r", present_PD_entries);
     printf("present_PT_entries: %#010llx     \n\r", present_PT_entries);
     printf("Present pd entries with PS bit set: %#010llx         \n\r", present_PD_entries_2);
+    printf("Highest addr: %018llx     \n\r", highest_addr);
     //*/
 
-    void *virtual_ptr_1 = 0x1000400000;
-    void *virtual_ptr_2 = 0x1000800000;
+#undef old_addr_to_new_map
+
+    void *virtual_ptr_1 = (void*)(uint64_t)0x1000400000;
+    //void *virtual_ptr_2 = 0x0000400000;//0x1000800000;
     /*addr *virtual_addr_1 = (addr*)&virtual_ptr_1;
     addr *virtual_addr_2 = (addr*)&virtual_ptr_2;
     addr *pml4_addr = &pml4;*/
 
     int *buffer_1 = virtual_ptr_1;
-    int *buffer_2 = virtual_ptr_2;
-    printf("Buffer 1: %#018llx, buffer 2: %#018llx         \n\r", buffer_1, buffer_2);
 
+
+    void *physical_addr = (void*)(uint64_t)0x1800000;
+    int *buffer_2 = physical_addr;
+    printf("Buffer 1: %#018llx, buffer 2: %#018llx         \n\r", buffer_1, buffer_2);
     // Intentionally broken line: page fault:
     //printf("Buffer 1 elem 0: %#018llx, buffer 2: %#018llx         \n\r", buffer_1[0], buffer_2[0]);
 
-    void *physical_addr = 0x1800000;
-
+    struct PML4_entry *pml4_pml4 = pml4 + 0;
+    struct PDP_entry *pml4_pdp = (struct PDP_entry*)(uint64_t)(pml4_pml4->addr << 12) + ((uint64_t)(PDP_MASK(pml4)) >> PDP_OFFSET);
+    struct PD_entry_2M *pml4_pd = (struct PD_entry_2M*)(uint64_t)(pml4_pdp->addr << 12) + ((uint64_t)(PD_MASK(pml4)) >> PD_OFFSET);
+    printf("%#018llx   ", *(uint64_t*)pml4_pml4);
+    printf("%#018llx, %d\n\r", *(uint64_t*)pml4_pdp, pml4_pdp->R_W);
+    printf("%#018llx, %d\n\r", *(uint64_t*)pml4_pd, pml4_pd->R_W);
+    pml4_pd->R_W = 1;
     //struct PT_entry pml4_pt_entry = ((struct PT_entry*)(uint64_t)(((struct PD_entry_4K*)(uint64_t)(((struct PDP_entry*)(uint64_t)(pml4[pml4_addr->pml4_offset].addr << 12))[pml4_addr->pdp_offset].addr << 12))[pml4_addr->pd_offset].addr << 12))[pml4_addr->pt_offset];
     //printf("pml4 mapping present: %d, with .addr: %#018llx, at addr: %#018llx                             \n\r", pml4_pt_entry.P, pml4_pt_entry.addr << 12, &pml4_pt_entry);
 
@@ -214,10 +258,10 @@ u64 kmain() {
                     pte->G = 0;
                     pte->PAT = 0;
                     pte->NX = 1;
-                    pte->addr = physical_addr;
+                    pte->addr = (uint64_t)physical_addr;
                 }
             } else {
-                struct PD_entry_2M *pde = &pd[PD_MASK(virtual_ptr_1) >> PD_OFFSET];
+                struct PD_entry_2M *pde = (struct PD_entry_2M *)&pd[PD_MASK(virtual_ptr_1) >> PD_OFFSET];
                 pde->P = 1;
                 pde->R_W = 1;
                 pde->U_S = 1;
@@ -231,8 +275,8 @@ u64 kmain() {
                 pde->addr = ((uint64_t)physical_addr >> 21);
             }
         } else {
-            printf(" PDP not present, filling!");
-            pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].P = 1;
+            printf("PDP not present, filling! ");
+            /*pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].P = 1;
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].R_W = 1;
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].U_S = 1;
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].PWT = 0;
@@ -240,28 +284,27 @@ u64 kmain() {
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].A = 0;
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].PS = 0;
             pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].addr = 0x7c43;
-            pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].NX = 0;
-            //struct PDP_entry *pdpe = (char*)pdp + sizeof(struct PDP_entry) * (PDP_MASK(virtual_ptr_1) >> PDP_OFFSET);
-            /*pdpe->P = 1;
-            printf(" PD not present");
+            pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].NX = 0;*/
+            struct PDP_entry *pdpe = pdp + (PDP_MASK(virtual_ptr_1) >> PDP_OFFSET);
+            pdpe->P = 1;
             pdpe->R_W = 1;
             pdpe->U_S = 1;
             pdpe->PWT = 0;
             pdpe->PCD = 0;
             pdpe->A = 0;
             pdpe->PS = 0;
-            pdpe->addr = 0x7c43;
-            pdpe->NX = 0;*/
+            pdpe->addr = 0x1444;
+            pdpe->NX = 0;
 
             printf(" PD not present");
-            struct PD_entry_4K *pd = (struct PD_entry_4K*) (uint64_t) (pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].addr << 12);
-            char *pd_4k_page = pd;
-            printf(" %#018llx, %#018llx", pd, pd_4k_page);
+            //struct PD_entry_4K *pd = (struct PD_entry_4K*) (uint64_t) ;
+            char *pd_4k_page = (char*)(uint64_t)(pdp[PDP_MASK(virtual_ptr_1) >> PDP_OFFSET].addr << 12);
+            //printf(" %#018llx, %#018llx", pd, pd_4k_page);
             for (uint64_t i = 0; i < 4096; i++) {
                 pd_4k_page[i] = 0;
             }
             printf(", filling!");
-            struct PD_entry_2M *pde = &pd[PD_MASK(virtual_ptr_1) >> PD_OFFSET];
+            struct PD_entry_2M *pde = &(((struct PD_entry_2M*)pd_4k_page)[PD_MASK(virtual_ptr_1) >> PD_OFFSET]);
             pde->P = 1;
             pde->R_W = 1;
             pde->U_S = 1;
@@ -272,11 +315,12 @@ u64 kmain() {
             pde->G = 0;
             pde->PAT = 0;
             pde->NX = 1;
+            pde->PS = 1;
             pde->addr = ((uint64_t)physical_addr >> 21);
         }
     }
     printf("\n\r");
-
+/*
     if (pml4[PML4_MASK(virtual_ptr_2) >> PML4_OFFSET].P) {
         printf("PML4 present! ");
         struct PDP_entry *pdp = (struct PDP_entry*) (uint64_t) (pml4[PML4_MASK(virtual_ptr_2) >> PML4_OFFSET].addr << 12);
@@ -351,11 +395,19 @@ u64 kmain() {
         }
     }
     printf("\n\r");
+    */
 
+    a = 0x1402000;
+    __asm__ __volatile__ (
+        "movq %0, %%cr3;" : : "r" (a)
+    );
+
+    printf("Buffer 1 elem 0: %#018llx, buffer 2: %#018llx         \n\r", buffer_1[0], buffer_2[0]);
     buffer_1[0] = 0x12345;
     printf("Buffer 1 elem 0: %#018llx, buffer 2: %#018llx         \n\r", buffer_1[0], buffer_2[0]);
+    printf("Buffer 1 != Buffer 2: %s\n\r", buffer_1 != buffer_2 ? "true" : "false");
 
-kend:
+// kend:
     printf("Exiting!\n\r");
     return 0xBE2E76E43E;
 }

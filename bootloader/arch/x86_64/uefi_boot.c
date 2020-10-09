@@ -92,9 +92,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
 
     /* Open /boot/resources/boot.cfg */
-    efi_file_protocol *config_handle;
-    efi_file_protocol *boot_folder_handle;
-    efi_file_protocol *resource_folder_handle;
+    efi_file_protocol *config_handle = NULL;
+    efi_file_protocol *boot_folder_handle = NULL;
+    efi_file_protocol *resource_folder_handle = NULL;
     size_t config_size;
     size_t config_pages;
     efi_physical_addr config_buf;
@@ -134,7 +134,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = file_close(font_handle);
     ERR(status);
 
-    unsigned char *font_buf = (unsigned char*)font_addr;
+    //unsigned char *font_buf = (unsigned char*)font_addr;
     struct psf2_header *font_psf_header = (struct psf2_header*)font_addr;
 
     /* Check it is a valid font */
@@ -150,7 +150,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         return EFI_BUFFER_TOO_SMALL;
     }
 
-    memcpy(psf_buf, font_addr, font_size);
+    memcpy(psf_buf, (void *)font_addr, font_size);
     if (PSF2_MAGIC_OK(psf_buf)) {
     } else {
         status = print(u"Copy failed!\n\r");
@@ -179,7 +179,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     Elf64_header *elf_header = (Elf64_header *)kernel_buf;
 
     /* Check the kernel is actually an ELF binary */
-    static const char* elf_magic = "\x7f""ELF";
+    //static const char* elf_magic = "\x7f""ELF";
     if (ELF_MAGIC_OK(elf_header->ident.magic_num.magic_chars)) {
     } else {
         status = print(u"Invalid ELF file, exiting!\n\r");
@@ -207,12 +207,12 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     Elf64_program_table_entry *program_table_entries = 
             (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
 
-    Elf64_section_table_entry *section_table_entries = 
-            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);
+    /*Elf64_section_table_entry *section_table_entries = 
+            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
     void *segment_pages[2];
     for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        uint64_t page_addr = program_table_entries[i].vaddr - (program_table_entries[i].vaddr) % 0x1000;
+        uint64_t page_addr = program_table_entries[i].paddr - (program_table_entries[i].paddr) % 0x1000;
         /*print_hex64(u"i: 0x", i);
         print_hex64(u", addr: 0x", page_addr);
         print_hex64(u", off: 0x", program_table_entries[i].offset);
@@ -256,7 +256,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     for (size_t i = 0; i < graphics_output->Mode->MaxMode; i++) {
         status = graphics_output->QueryMode(graphics_output, i, &mode_size, &mode_info);
         if (status == EFI_BUFFER_TOO_SMALL) {
-            status = st->BootServices->AllocatePool(EfiLoaderData, mode_size, &mode_info);
+            status = st->BootServices->AllocatePool(EfiLoaderData, mode_size, (void **)&mode_info);
             ERR(status);
             status = graphics_output->QueryMode(graphics_output, i, &mode_size, &mode_info);
             ERR(status);
@@ -295,7 +295,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     print(u"Changed resolution!\n\r");
 
     /* Set boot table framebuffer pointer */
-    boot_table.graphics_mode.framebuffer_base = graphics_output->Mode->FrameBufferBase;
+    boot_table.graphics_mode.framebuffer_base = (void *)graphics_output->Mode->FrameBufferBase;
     boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
 
     /*status = st->BootServices->FreePool(mode_info);
@@ -311,7 +311,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     if (boot_table.kernel_start_ptr == 0)
         goto end;
     
-    struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
+    //struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
 
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
@@ -345,7 +345,8 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
     typedef uint64_t(*kmain_t)(struct boot_table *table);
     kmain_t kmain = (kmain_t)elf_header->entry_addr;
-    uint64_t kernel_return_code = kmain(&boot_table);
+    //uint64_t kernel_return_code = 
+    kmain(&boot_table);
 
     return EFI_SUCCESS;
 

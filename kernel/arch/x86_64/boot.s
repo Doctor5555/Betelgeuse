@@ -7,7 +7,7 @@ struc boot_table
     .graphics_mode resb 40
 endstruc
 
-section .text
+section .start
 
 _start:
     mov rdi, rcx

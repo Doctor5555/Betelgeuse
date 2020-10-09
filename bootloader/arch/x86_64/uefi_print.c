@@ -21,13 +21,13 @@ efi_status echo_to_logfile(char16_t *msg, size_t len) {
     ERR(status);
     status = file_read(st->BootServices, file_handle, &buf, &size, &pages);
     ERR(status);
-    char16_t *char_buf = buf;
+    char16_t *char_buf = (char16_t *)buf;
     for (size_t i = 0; i < len; i++) {
         char_buf[size] = msg[i];
         size++;
     }
 
-    status = file_write(file_handle, size, buf);
+    status = file_write(file_handle, size, (char *)buf);
     ERR(status);
     status = file_close(file_handle);
     ERR(status);

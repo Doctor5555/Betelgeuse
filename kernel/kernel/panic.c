@@ -4,6 +4,6 @@
 
 __attribute__ ((noreturn))
 void kernel_panic(void) {
-    terminal_writestring("\n\rkernel panic!\n\r");
+    terminal_writestring((unsigned char *)"\n\rkernel panic!\n\r");
     for(;;);
 }
