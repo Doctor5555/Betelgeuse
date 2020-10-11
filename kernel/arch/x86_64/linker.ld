@@ -1,15 +1,15 @@
 ENTRY(_start)
 
-KERNEL_PMA = 0x00080000;
-KERNEL_VMA = 0x00000000;
+KERNEL_PMA = 0x0000000000080000;
+KERNEL_VMA = 0xFFFFFFFF80000000;
 
 SECTIONS
 {
     . = KERNEL_PMA;
 
     .start : {
-        _start = .;
-        *(.start)
+        _start_addr = .;
+        *(.start_low)
         . = ALIGN(4096);
     }
 
@@ -18,10 +18,16 @@ SECTIONS
     .text : AT(ADDR(.text) - KERNEL_VMA)
     {
         _code = .;
+        *(.start_high)
         *(.text)
-        *(.rodata*)
         . = ALIGN(4096);
     }
+
+    .rodata : AT(ADDR(.rodata) - KERNEL_VMA) {
+		_rodata = .;
+		*(.rodata*)
+		. = ALIGN(4096);
+	}
 
    .data : AT(ADDR(.data) - KERNEL_VMA)
    {

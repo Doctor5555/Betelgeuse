@@ -7,14 +7,22 @@ struc boot_table
     .graphics_mode resb 40
 endstruc
 
-section .start
+section .start_low
 
 _start:
     mov rdi, rcx
 
     extern early_kmain
     call early_kmain
+    
+    mov rax, QWORD _start_high
+    jmp [rax]
 
+.size: equ $ - _start
+
+section .start_high
+
+_start_high:
     extern _init
     call _init
 
@@ -24,8 +32,9 @@ _start:
     extern _fini
     call _fini
 
+
     cli
 .loop:
     jmp .loop
 
-.size: equ $ - _start
+.size: equ $ - _start_high

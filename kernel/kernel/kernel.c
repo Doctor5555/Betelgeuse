@@ -10,8 +10,8 @@
 struct boot_table boot_table;
 
 void __attribute__((__section__(".start"))) early_kmain(struct boot_table *boot_table_ptr) {
-    boot_table = *boot_table_ptr;
-    terminal_init(boot_table_ptr);
+    //boot_table = *boot_table_ptr;
+    //terminal_init(boot_table_ptr);
 }
 
 __attribute__ ((constructor)) void constructor_test() {

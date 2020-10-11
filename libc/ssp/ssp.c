@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdlib.h>
 
 #ifdef __is_libk
 
@@ -9,7 +10,7 @@ uintptr_t __stack_chk_guard = 0x7E1572135AEFC49D;
 __attribute__ ((noreturn)) void 
 __stack_chk_fail(void) {
     terminal_writestring("Stack smash protector triggered!");
-    kernel_panic();
+    abort();
 }
 
 #else
