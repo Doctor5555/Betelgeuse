@@ -1,49 +1,42 @@
 ENTRY(_start)
 
-KERNEL_PMA = 0x0000000000080000;
 KERNEL_VMA = 0xFFFFFFFF80000000;
 
 SECTIONS
 {
-    . = KERNEL_PMA;
+    . = KERNEL_VMA;
 
-    .start : {
-        _start_addr = .;
-        *(.start_low)
-        . = ALIGN(4096);
-    }
+    __kernel_start = .;
 
-    . += KERNEL_VMA;
-
-    .text : AT(ADDR(.text) - KERNEL_VMA)
+    .text :
     {
         _code = .;
-        *(.start_high)
         *(.text)
         . = ALIGN(4096);
     }
 
-    .rodata : AT(ADDR(.rodata) - KERNEL_VMA) {
-		_rodata = .;
-		*(.rodata*)
-		. = ALIGN(4096);
-	}
-
-   .data : AT(ADDR(.data) - KERNEL_VMA)
+   .data :
    {
         _data = .;
         *(.data)
         . = ALIGN(4096);
    }
 
-   .eh_frame : AT(ADDR(.eh_frame) - KERNEL_VMA)
+    .rodata :
+    {
+		_rodata = .;
+		*(.rodata*)
+		. = ALIGN(4096);
+	}
+
+   .eh_frame :
    {
        _ehframe = .;
        *(.eh_frame)
         . = ALIGN(4096);
    }
 
-   .bss : AT(ADDR(.bss) - KERNEL_VMA)
+   .bss :
    {
        _bss = .;
        *(.bss)
@@ -58,6 +51,7 @@ SECTIONS
    }
 
    _end = .;
+   __kernel_end = .;
 
    /DISCARD/ :
    {

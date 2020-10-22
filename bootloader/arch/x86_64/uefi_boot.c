@@ -7,11 +7,11 @@ Initial setup
 Test 64 bit support
 Open config file
 Parse config file @TODO
-Open and read font file @TODO
-Display boot meny @TODO @LOW
+Open and read font file
+Display boot menu @TODO @LOW
 Open selected kernel
-Retrieve and save memory map @TODO
-Exit boot services @TODO
+Retrieve and save memory map
+Exit boot services
 Launch selected kernel
 */
 
@@ -29,7 +29,9 @@ Launch selected kernel
 #include "uefi_print.h"
 #include "uefi_file.h"
 #include "uefi_elf.h"
+#include "uefi_mem.h"
 #include "boot_table.h"
+#include "uefi_tty.h"
 
 #undef ERR
 #define ERR(x) if(EFI_ERROR((x))) do { print_hex64(u"Error: 0x", (x)); print(u"\n\r"); goto end; } while (0)
@@ -38,24 +40,20 @@ static unsigned char memmap_buf[0x8000];
 static unsigned char psf_buf[0x8000];
 static struct boot_table boot_table;
 
+static unsigned char scratch_stack[0x1000];
+static unsigned char *stack_ptr = scratch_stack;
+
 static efi_system_table *st;
 
-static char hexchars[17] = "0123456789ABCDEF";
-static uint16_t hex64outstr[19] = u"0000000000000000\n\r";
-
-size_t add_and_print(efi_simple_text_output_protocol *ConOut, int a, int b) {
-    size_t val = a + b;
-
-    efi_status status;
-    for (int8_t i = 15; i >= 0; i--) {
-        hex64outstr[i] = hexchars[val & 0b1111];
-        val = val >> 4;
-    }
-    status = ConOut->OutputString(ConOut, u"Sum: ");
-    if(EFI_ERROR((status))) do { print_hex64(u"Error: 0x", (status)); return status; } while (0);
-    status = ConOut->OutputString(ConOut, hex64outstr);
-    return status;
-}
+/*
+void __attribute__((noreturn)) 
+jump_to_kmain(uint64_t entry_addr, void *boot_table) {
+    __asm__ __volatile__ (
+        "movq %0, %%rax;"
+        "movq %1, %%rcx;"
+        "jmp *%%rax": : "r" (entry_addr), "r" (boot_table)
+    );
+}*/
 
 efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table *st_in) {
     st = st_in;
@@ -116,7 +114,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = println_char((char*)config_buf, config_size);
     ERR(status);
 
-    // @TODO: Use boot.cfg to configure launch of the kernel
+    /* @TODO: Use boot.cfg to configure launch of the kernel */
 
     status = st->BootServices->FreePages(config_buf, config_pages);
     ERR(status);
@@ -134,7 +132,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = file_close(font_handle);
     ERR(status);
 
-    //unsigned char *font_buf = (unsigned char*)font_addr;
     struct psf2_header *font_psf_header = (struct psf2_header*)font_addr;
 
     /* Check it is a valid font */
@@ -179,7 +176,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     Elf64_header *elf_header = (Elf64_header *)kernel_buf;
 
     /* Check the kernel is actually an ELF binary */
-    //static const char* elf_magic = "\x7f""ELF";
     if (ELF_MAGIC_OK(elf_header->ident.magic_num.magic_chars)) {
     } else {
         status = print(u"Invalid ELF file, exiting!\n\r");
@@ -202,37 +198,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     }
 
     print(u"Done kernel!\n\r");
-
-    /* Parse the kernel header and load it to the correct memory location */
-    Elf64_program_table_entry *program_table_entries = 
-            (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
-
-    /*Elf64_section_table_entry *section_table_entries = 
-            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
-
-    void *segment_pages[2];
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        uint64_t page_addr = program_table_entries[i].paddr - (program_table_entries[i].paddr) % 0x1000;
-        /*print_hex64(u"i: 0x", i);
-        print_hex64(u", addr: 0x", page_addr);
-        print_hex64(u", off: 0x", program_table_entries[i].offset);
-        print_hex64(u", typ: 0x", program_table_entries[i].type);
-        print(u"\n\r");*/
-        // @TODO: Make the virtual addresses actually virtually addressed?
-        // @TODO: Allocate enough memory to hold all the data
-        
-        status = st->BootServices->AllocatePages(AllocateAddress, EfiLoaderCode, 1, &page_addr);
-        if (status != EFI_SUCCESS) {
-            print_hex64(u"Error: 0x", (status));
-            return status;
-        }
-
-        st->BootServices->CopyMem((void*)page_addr, 
-                                (void*)(kernel_buf + program_table_entries[i].offset), 
-                                kernel_size - program_table_entries[i].offset);
-
-        segment_pages[i] = (void*)page_addr;
-    }
 
     /* Locate the graphics output protocol*/
     size_t gop_handle_count = 0;
@@ -298,9 +263,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     boot_table.graphics_mode.framebuffer_base = (void *)graphics_output->Mode->FrameBufferBase;
     boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
 
-    /*status = st->BootServices->FreePool(mode_info);
-    ERR(status);*/
-
     status = print_hex64(u"Kernel entry address: 0x", elf_header->entry_addr);
     ERR(status);
     print(u"\n\r");
@@ -310,11 +272,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     print(u"\n\r");
     if (boot_table.kernel_start_ptr == 0)
         goto end;
-    
-    //struct psf2_header* psf_header_ptr = ((struct psf2_header*)psf_buf);
 
-    status = st->ConOut->ClearScreen(st->ConOut);
-    ERR(status);
+    //status = st->ConOut->ClearScreen(st->ConOut);
+    //ERR(status);
 
     /* Retrieve the memory map */
     efi_memory_descriptor *mem_map = 
@@ -331,22 +291,69 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         ERR(status);
     }
     size_t desc_count = map_size / desc_size;
-    /*memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
-    memcpy(memmap_buf + sizeof(uint64_t), &desc_count, sizeof(uint64_t));*/
 
     boot_table.mem_table_ptr = memmap_buf;
     boot_table.mem_desc_size = desc_size;
     boot_table.mem_desc_count = desc_count;
     boot_table.font_ptr = psf_buf;
 
-    /* Exit boot services and call the kernel */
+    /* Exit boot services and init virtual mapping*/
     status = st->BootServices->ExitBootServices(handle, map_key);
     ERR(status);
 
-    typedef uint64_t(*kmain_t)(struct boot_table *table);
-    kmain_t kmain = (kmain_t)elf_header->entry_addr;
-    //uint64_t kernel_return_code = 
+    terminal_init(&boot_table);
+    terminal_cursor(0, 4);
+
+    terminal_writestring("Exited boot services, initialising virtual mapping!\n\r");
+
+    init_virtual_mapping(mem_map, desc_count, desc_size);
+    get_mapping_ptrs_and_count(&boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
+
+    terminal_writestring("Kernel finished???!\n\r");
+    
+    /* Parse the kernel header and map it to the correct memory location */
+    Elf64_program_table_entry *program_table_entries = 
+            (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);
+    /*Elf64_section_table_entry *section_table_entries = 
+            (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
+
+    uint64_t highest_page_mapped = 0;
+    for (uint64_t i = 0; i < elf_header->prog_header_entry_num; i++) { // nocheckin @HACK @TODO @IMPORTANT @TEMPORARY @ALL_THE_TAGS Remove the 0 from the condition to actually do this.
+        uint64_t segment_size;
+        if (i == elf_header->prog_header_entry_num - 1) {
+            segment_size = kernel_size - program_table_entries[i].offset;
+        } else {
+            segment_size = program_table_entries[i + 1].offset - program_table_entries[i].offset;
+        }
+
+        virtual_addr segment_base_addr      = program_table_entries[i].vaddr;
+        virtual_addr segment_page_base_addr = segment_base_addr - segment_base_addr % 0x1000;
+        virtual_addr segment_max_addr       = segment_base_addr + segment_size;
+        virtual_addr segment_page_max_addr  = segment_max_addr - segment_max_addr % 0x1000;
+        uint64_t pages                      = 1 + (segment_page_max_addr - segment_page_base_addr) / 0x1000;
+
+        physical_addr segment_phys_addr = kernel_buf + program_table_entries[i].offset;
+
+        if (segment_base_addr + (pages << 12) > highest_page_mapped) {
+            highest_page_mapped = segment_base_addr + (pages << 12);
+        }
+        status = map_pages(segment_phys_addr, segment_base_addr, pages);
+
+        if(EFI_ERROR(status)) {
+            terminal_writestring("Mapping error: ");
+            terminal_print_hex64(status);
+            terminal_writestring("\n\r");
+            return status;
+        }
+    }
+    terminal_writestring("Mapped kernel, jumping in!\n\r");
+
+    /* Call the kernel */
+    typedef void(*kmain_t)(struct boot_table*);
+    kmain_t kmain = elf_header->entry_addr;
     kmain(&boot_table);
+    terminal_writestring("Mapped kernel, jumping in!\n\r");
+    //jump_to_kmain(elf_header->entry_addr, &boot_table);
 
     return EFI_SUCCESS;
 
@@ -455,3 +462,51 @@ end:
     //st->BootServices->SignalEvent()
 
     //st->BootServices->ExitBootServices(handle, map_key);
+
+
+    /*
+    Options:
+    Count the required number of pages. Allocate in a continuous block somewhere, then copy and map to higher half.
+    Directly map the already allocated kernel to the correct location.
+    */
+/*
+
+    uint64_t segment_count = elf_header->prog_header_entry_num;
+    uint64_t *segment_addrs = stack_ptr;
+    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
+    uint64_t *segment_virtual_addrs = stack_ptr;
+    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
+    uint64_t *segment_page_counts = stack_ptr;
+    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
+
+    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
+        // @TODO: Make the virtual addresses actually virtually addressed?
+        // @TODO: Allocate enough memory to hold all the data
+        uint64_t page_addr = 0;
+        uint64_t segment_size;
+        if (i == elf_header->prog_header_entry_num - 1) {
+            segment_size = kernel_size - program_table_entries[i].offset;
+        } else {
+            segment_size = program_table_entries[i + 1].offset - program_table_entries[i].offset;
+        }
+
+        uint64_t segment_base_addr      = program_table_entries[i].vaddr;
+        uint64_t segment_page_base_addr = segment_base_addr - segment_base_addr % 0x1000;
+        uint64_t segment_max_addr       = segment_base_addr + segment_size;
+        uint64_t segment_page_max_addr  = segment_max_addr - segment_max_addr % 0x1000;
+        uint64_t pages                  = 1 + (segment_page_max_addr - segment_page_base_addr) / 0x1000;
+
+        status = st->BootServices->AllocatePages(AllocateAnyPages, EfiLoaderCode, pages, &page_addr);
+        if (status != EFI_SUCCESS) {
+            print_hex64(u"Error: 0x", (status));
+            return status;
+        }
+
+        st->BootServices->CopyMem((void*)(page_addr + segment_base_addr % 0x1000), 
+                                (void*)(kernel_buf + program_table_entries[i].offset), 
+                                segment_size);
+
+        segment_addrs[i] = page_addr;
+        segment_virtual_addrs[i] = program_table_entries[i].vaddr;
+        segment_page_counts[i] = pages;
+    }*/
