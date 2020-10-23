@@ -36,12 +36,9 @@ u64 kmain() {/*
     } else {
         printf("boot_table->kernel_start_ptr: %#018llx\n\r", boot_table.kernel_start_ptr);
     }*/
-    uint32_t *fb = boot_table.graphics_mode.framebuffer_base;
-    fb[2 * boot_table.graphics_mode.width + 5] = 0x00FFFFFF;
 
     //terminal_writestring("Hello, World!");
 
-    return 0;
     u32 fg = 0xFFFFFF;
     u32 bg = 0;
     terminal_setcolour(fg, bg);

@@ -7,16 +7,15 @@ _start:
 
     extern early_kmain
     call early_kmain
-    ret
 
-    ;extern _init
-    ;call _init
+    extern _init
+    call _init
 
     extern kmain
     call kmain
 
-    ;extern _fini
-    ;call _fini
+    extern _fini
+    call _fini
 
 _kernel_halt:
     hlt

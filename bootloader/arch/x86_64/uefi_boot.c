@@ -300,12 +300,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->ExitBootServices(handle, map_key);
     ERR(status);
 
-    terminal_init(&boot_table);
-    terminal_cursor(0, 4);
-
-    //terminal_writestring("Exited boot services, initialising virtual mapping!\n\r");
-    
-
     init_virtual_mapping(mem_map, desc_count, desc_size);
     get_mapping_ptrs_and_count(&boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
     
@@ -316,7 +310,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
             (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
     uint64_t highest_page_mapped = 0;
-    uint64_t kernel_entry_addr = 0;
     for (uint64_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         uint64_t segment_size;
         if (i == elf_header->prog_header_entry_num - 1) {
@@ -333,76 +326,25 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
         physical_addr segment_phys_addr = kernel_buf + program_table_entries[i].offset;
 
-        if (segment_base_addr < elf_header->entry_addr && elf_header->entry_addr < segment_max_addr) {
-            kernel_entry_addr = segment_phys_addr + elf_header->entry_addr - segment_base_addr;
-        }
         if (segment_base_addr + (pages << 12) > highest_page_mapped) {
             highest_page_mapped = segment_base_addr + (pages << 12);
         }
-        terminal_writestring("Number of pages: 0x");
-        terminal_print_hex64(pages);
-        terminal_writestring("\n\r");
-        for (int i = 0; i < pages; i++) {
-            terminal_writestring("phys addr: 0x");
-            terminal_print_hex64(segment_phys_addr + (i << 12));
-            terminal_writestring(", virt addr: 0x");
-            terminal_print_hex64(segment_base_addr + (i << 12));
-            terminal_writestring("\n\r");
-            map_page(segment_phys_addr + (i << 12), segment_base_addr + (i << 12));
-        }
-//        status = map_pages(segment_phys_addr, segment_base_addr, pages);
-/*
+        status = map_pages(segment_phys_addr, segment_base_addr, pages);
+
         if(EFI_ERROR(status)) {
+            terminal_init(&boot_table);
             terminal_writestring("Mapping error: ");
             terminal_print_hex64(status);
             terminal_writestring("\n\r");
             return status;
-        }*/
+        }
     }
-    terminal_writestring("Mapped kernel, jumping in!\n\r");
-
-    terminal_writestring("Kernel entry addr: 0x");
-    terminal_print_hex64(elf_header->entry_addr);
-    terminal_writestring("\n\r");
-
-    void *virtual_ptr_1 = OFFSETS_TO_ADDR(1, 64, 65, 64);
-    int *buffer_1 = virtual_ptr_1;
-    void *physical_addr = (void*)(uint64_t)0x1800000;
-    int *buffer_2 = physical_addr;
-
-    map_page(physical_addr, virtual_ptr_1);
-
-    terminal_writestring("Buffer 1: 0x");
-    terminal_print_hex64(buffer_1[0]);
-    terminal_writestring(", Buffer 2: 0x");
-    terminal_print_hex64(buffer_2[0]);
-
-    buffer_1[0] = 0x12345;
-
-    terminal_writestring(", Buffer 1: 0x");
-    terminal_print_hex64(buffer_1[0]);
-    terminal_writestring(", Buffer 2: 0x");
-    terminal_print_hex64(buffer_2[0]);
-    terminal_writestring("\n\r");
-
-    terminal_writestring("Kernel entry data: 0x");
-    terminal_print_hex64(*(uint64_t*)kernel_entry_addr);
-    terminal_writestring(", Kernel entry addr: 0x");
-    terminal_print_hex64(kernel_entry_addr);
-    terminal_writestring(", Kernel pages: 0x");
-    terminal_print_hex64(kernel_pages);
-    terminal_writestring(", Kernel entry data 2: 0x");
-    terminal_print_hex64(*(uint64_t*)elf_header->entry_addr);
-    terminal_writestring("\n\r");
+    //terminal_writestring("Mapped kernel, jumping in!\n\r");
 
     /* Call the kernel */
     typedef uint64_t(*kmain_t)(struct boot_table*);
     kmain_t kmain = elf_header->entry_addr;
     uint64_t kernel_return = kmain(&boot_table);
-
-    terminal_print_hex64(boot_table.graphics_mode.framebuffer_base);
-    terminal_writestring("\n\r");
-    terminal_print_hex64(kernel_return);
 
     return EFI_SUCCESS;
 
@@ -422,140 +364,3 @@ end:
     ERR(status);
     return EFI_SUCCESS;
 }
-    
-    /*
-    status = print(u"kmain() result: 0x");
-    ERR(status);
-    status = print_hex64(u"", kernel_return_code);
-    ERR(status);
-    print(u"\n\r");
-
-    print_hex64(u"Expectd result: 0x", gop_handles);
-    print(u"\n\r");*/
-
-/*
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        status = st->BootServices->FreePages((efi_physical_addr)segment_pages[i], 1);
-    }
-
-    status = st->BootServices->FreePages(kernel_addr, kernel_pages);
-    ERR(status);
-
-    print(u"Freed kernel!\n\r");*/
-
-/*
-    efi_memory_descriptor *mem_map = 
-        (efi_memory_descriptor *)(memmap_buf + 2 * sizeof(uint64_t));
-    size_t map_size = sizeof(memmap_buf) - 2 * sizeof(uint64_t);
-    size_t map_key = 0;
-    size_t desc_size = 0;
-    uint32_t desc_ver = 0;
-    status = st->BootServices->GetMemoryMap(
-        &map_size, mem_map, &map_key, &desc_size, &desc_ver);
-    if (status != EFI_SUCCESS) {
-        efi_status print_status = st->ConOut->OutputString(st->ConOut, u"Failed to retrieve memory map!\n\r");
-        ERR(print_status);
-        ERR(status);
-    }
-    size_t desc_count = map_size / desc_size;
-    memcpy(memmap_buf, &desc_size, sizeof(uint64_t));
-    memcpy(memmap_buf + sizeof(uint64_t), &desc_count, sizeof(uint64_t));
-
-    print_hex64(u"Map size: 0x", map_size);
-    print(u"\n\r");
-    print_hex64(u"Descriptor size: 0x", desc_size);
-    print(u"\n\r");
-    print_hex64(u"sizeof(efi_memory_descriptor): 0x", sizeof(efi_memory_descriptor));
-    print(u"\n\r");
-    print_hex64(u"Desc ver: 0x", desc_ver);
-    print(u"\n\r");
-
-    {
-        efi_memory_descriptor *descriptor = mem_map + 3 * desc_size;
-        descriptor->NumberOfPages = 0x400;
-        descriptor->PhysicalStart = 0xFFC00000;
-        descriptor->VirtualStart = 0xFF800000;
-        descriptor->Type = ((efi_memory_descriptor*)(mem_map + desc_size))->Type;
-        descriptor->Attribute = ((efi_memory_descriptor*)(mem_map + desc_size))->Attribute;
-    }
-
-    size_t first_invalid = 0;
-    for (size_t i = 0; i < 0x17; i++) {
-        efi_memory_descriptor *descriptor = mem_map + i * desc_size;
-        if (descriptor->Type >= EfiMaxMemoryType) {
-            first_invalid = 0;
-            descriptor->Type = 0;
-            descriptor->PhysicalStart = 0;
-            descriptor->VirtualStart = 0;
-            descriptor->NumberOfPages = 0;
-            descriptor->Attribute = 0;
-        } else {
-            print_hex64(u"desc 0x", i);
-            print_hex64(u" phys 0x", descriptor->PhysicalStart);
-            print_hex64(u" virt 0x", descriptor->VirtualStart);
-            print_hex64(u", pages 0x", descriptor->NumberOfPages);
-            print(u"\n\r");
-        }
-    }
-    
-    st->BootServices->ExitBootServices(handle, map_key);
-
-    size_t mem_map_size = desc_size * desc_count;
-    st->RuntimeServices->SetVirtualAddressMap(mem_map_size, ((size_t*)memmap_buf)[0], desc_ver, mem_map);
-*/
-/*
-    char16_t a[1];
-    a[0] = 'W' | (15 | 8 << 4) << 8;
-    print(a);*/
-
-    //st->BootServices->SignalEvent()
-
-    //st->BootServices->ExitBootServices(handle, map_key);
-
-
-    /*
-    Options:
-    Count the required number of pages. Allocate in a continuous block somewhere, then copy and map to higher half.
-    Directly map the already allocated kernel to the correct location.
-    */
-/*
-
-    uint64_t segment_count = elf_header->prog_header_entry_num;
-    uint64_t *segment_addrs = stack_ptr;
-    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
-    uint64_t *segment_virtual_addrs = stack_ptr;
-    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
-    uint64_t *segment_page_counts = stack_ptr;
-    stack_ptr += sizeof(uint64_t) * elf_header->prog_header_entry_num;
-
-    for (size_t i = 0; i < elf_header->prog_header_entry_num; i++) {
-        // @TODO: Make the virtual addresses actually virtually addressed?
-        // @TODO: Allocate enough memory to hold all the data
-        uint64_t page_addr = 0;
-        uint64_t segment_size;
-        if (i == elf_header->prog_header_entry_num - 1) {
-            segment_size = kernel_size - program_table_entries[i].offset;
-        } else {
-            segment_size = program_table_entries[i + 1].offset - program_table_entries[i].offset;
-        }
-
-        uint64_t segment_base_addr      = program_table_entries[i].vaddr;
-        uint64_t segment_page_base_addr = segment_base_addr - segment_base_addr % 0x1000;
-        uint64_t segment_max_addr       = segment_base_addr + segment_size;
-        uint64_t segment_page_max_addr  = segment_max_addr - segment_max_addr % 0x1000;
-        uint64_t pages                  = 1 + (segment_page_max_addr - segment_page_base_addr) / 0x1000;
-
-        status = st->BootServices->AllocatePages(AllocateAnyPages, EfiLoaderCode, pages, &page_addr);
-        if (status != EFI_SUCCESS) {
-            print_hex64(u"Error: 0x", (status));
-            return status;
-        }
-
-        st->BootServices->CopyMem((void*)(page_addr + segment_base_addr % 0x1000), 
-                                (void*)(kernel_buf + program_table_entries[i].offset), 
-                                segment_size);
-
-        segment_addrs[i] = page_addr;
-        segment_virtual_addrs[i] = program_table_entries[i].vaddr;
-        segment_page_counts[i] = pages;
-    }*/
