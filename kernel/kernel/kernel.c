@@ -9,10 +9,11 @@
 
 struct boot_table boot_table;
 
-void early_kmain(struct boot_table *boot_table_ptr) {
+uint64_t early_kmain(struct boot_table *boot_table_ptr) {
     boot_table = *boot_table_ptr;
     terminal_init(&boot_table);
     terminal_writestring("Hello, World from early kmain!\n\r");
+    return boot_table.graphics_mode.framebuffer_base;
 }
 
 __attribute__ ((constructor)) void constructor_test() {
@@ -29,13 +30,18 @@ int ssp_test(const char *test) {
     return dest[2] & test[1];
 }
 
-u64 kmain() {
+u64 kmain() {/*
     if (boot_table.kernel_start_ptr == 0) {
         printf("Kernel start ptr is zero! This should not be the case!\n\r");
     } else {
         printf("boot_table->kernel_start_ptr: %#018llx\n\r", boot_table.kernel_start_ptr);
-    }
+    }*/
+    uint32_t *fb = boot_table.graphics_mode.framebuffer_base;
+    fb[2 * boot_table.graphics_mode.width + 5] = 0x00FFFFFF;
 
+    //terminal_writestring("Hello, World!");
+
+    return 0;
     u32 fg = 0xFFFFFF;
     u32 bg = 0;
     terminal_setcolour(fg, bg);
@@ -51,8 +57,8 @@ u64 kmain() {
         }
         //terminal_write(&i, 1);
     }
-    printf("\n\rHello, Printf World %#05x!\n\r", 5000);
     printf("\n\rHello, Printf World 2!\n\r");
+    printf("\n\rHello, Printf World %#05x!\n\r", 5000);
 
     ssp_test("12");
     printf("Done ssp test 1 with 12!\n\r");

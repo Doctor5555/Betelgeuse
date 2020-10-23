@@ -2,13 +2,13 @@
 
 #include "uefi_tty.h"
 
-static uint64_t *pml4_ptr = 0xFFFFFFFFFFFFF000;
+static uint64_t *pml4_ptr;
 /* Absolute physical address of the next page available to map */
 static physical_addr next_available_mapping_page;
 static uint64_t available_mapping_page_count;
 
 uint64_t get_next_available_mapping_page() {
-    next_available_mapping_page + 0x1000;
+    next_available_mapping_page += 0x1000;
     available_mapping_page_count--;
     return next_available_mapping_page - 0x1000;
 }
@@ -117,11 +117,11 @@ efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descrip
     available_mapping_page_count = ((uint64_t)new_map + (pml4_page_count << 12) - next_available_mapping_page) >> 12;
 
     /* Set up recursive mapping */
-    pml4[511] = PRESENT_FLAG | WRITABLE_FLAG | (uint64_t)pml4;
+    //pml4[511] = PRESENT_FLAG | WRITABLE_FLAG | (uint64_t)pml4;
 
     /* Save the address of the old pml4, and put the new mapping tables in CR3 */
     struct PML4_entry *old_pml4 = (struct PML4_entry *)cr3;
-    //pml4_ptr = (uint64_t)new_map + pml4_addr - (uint64_t)old_map;
+    pml4_ptr = (uint64_t)new_map + pml4_addr - (uint64_t)old_map;
     cr3 &= ~ADDR_MASK;
     cr3 |= ((uint64_t)new_map + pml4_addr - (uint64_t)old_map) & ADDR_MASK;
     __asm__ __volatile__ (
@@ -150,12 +150,19 @@ efi_status map_page(physical_addr phys_addr, virtual_addr va_addr) {
     int pt_index   = VA_GET_PT_INDEX(va_addr);
     
     if (!(pml4_ptr[pml4_index] & PRESENT_FLAG)) {
+        terminal_writestring("Writing PML4: 0x");
         uint64_t *next_page = get_next_available_mapping_page();
         for (uint64_t i = 0; i < 0x200; i++) {
             next_page[i] = 0;
         }
-        pml4_ptr[pml4_index] = PRESENT_FLAG | WRITABLE_FLAG | USER_ACCESS_FLAG;
+        pml4_ptr[pml4_index] = PRESENT_FLAG | WRITABLE_FLAG;
         pml4_ptr[pml4_index] |= (uint64_t)next_page;
+        terminal_print_hex64(pml4_ptr[pml4_index]);
+        terminal_writestring("\n\r");
+    } else {
+        terminal_writestring("PML4 present: 0x");
+        terminal_print_hex64(pml4_ptr[pml4_index]);
+        terminal_writestring("\n\r");
     }
 
     uint64_t *pdp_ptr = pml4_ptr[pml4_index] & ADDR_MASK;

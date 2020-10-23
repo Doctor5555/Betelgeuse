@@ -263,18 +263,17 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     boot_table.graphics_mode.framebuffer_base = (void *)graphics_output->Mode->FrameBufferBase;
     boot_table.graphics_mode.framebuffer_size = graphics_output->Mode->FrameBufferSize;
 
+    status = print_hex64(u"Framebuffer base: 0x", boot_table.graphics_mode.framebuffer_base);
+    ERR(status);
+    print(u"\n\r");
     status = print_hex64(u"Kernel entry address: 0x", elf_header->entry_addr);
     ERR(status);
     print(u"\n\r");
 
     boot_table.kernel_start_ptr = (unsigned long long)elf_header->entry_addr;
-    status = print_hex64(u"Kernel entry address: 0x", boot_table.kernel_start_ptr);
-    print(u"\n\r");
-    if (boot_table.kernel_start_ptr == 0)
-        goto end;
 
-    //status = st->ConOut->ClearScreen(st->ConOut);
-    //ERR(status);
+    status = st->ConOut->ClearScreen(st->ConOut);
+    ERR(status);
 
     /* Retrieve the memory map */
     efi_memory_descriptor *mem_map = 
@@ -304,12 +303,11 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     terminal_init(&boot_table);
     terminal_cursor(0, 4);
 
-    terminal_writestring("Exited boot services, initialising virtual mapping!\n\r");
+    //terminal_writestring("Exited boot services, initialising virtual mapping!\n\r");
+    
 
     init_virtual_mapping(mem_map, desc_count, desc_size);
     get_mapping_ptrs_and_count(&boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
-
-    terminal_writestring("Kernel finished???!\n\r");
     
     /* Parse the kernel header and map it to the correct memory location */
     Elf64_program_table_entry *program_table_entries = 
@@ -318,7 +316,8 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
             (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
     uint64_t highest_page_mapped = 0;
-    for (uint64_t i = 0; i < elf_header->prog_header_entry_num; i++) { // nocheckin @HACK @TODO @IMPORTANT @TEMPORARY @ALL_THE_TAGS Remove the 0 from the condition to actually do this.
+    uint64_t kernel_entry_addr = 0;
+    for (uint64_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         uint64_t segment_size;
         if (i == elf_header->prog_header_entry_num - 1) {
             segment_size = kernel_size - program_table_entries[i].offset;
@@ -334,26 +333,76 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
 
         physical_addr segment_phys_addr = kernel_buf + program_table_entries[i].offset;
 
+        if (segment_base_addr < elf_header->entry_addr && elf_header->entry_addr < segment_max_addr) {
+            kernel_entry_addr = segment_phys_addr + elf_header->entry_addr - segment_base_addr;
+        }
         if (segment_base_addr + (pages << 12) > highest_page_mapped) {
             highest_page_mapped = segment_base_addr + (pages << 12);
         }
-        status = map_pages(segment_phys_addr, segment_base_addr, pages);
-
+        terminal_writestring("Number of pages: 0x");
+        terminal_print_hex64(pages);
+        terminal_writestring("\n\r");
+        for (int i = 0; i < pages; i++) {
+            terminal_writestring("phys addr: 0x");
+            terminal_print_hex64(segment_phys_addr + (i << 12));
+            terminal_writestring(", virt addr: 0x");
+            terminal_print_hex64(segment_base_addr + (i << 12));
+            terminal_writestring("\n\r");
+            map_page(segment_phys_addr + (i << 12), segment_base_addr + (i << 12));
+        }
+//        status = map_pages(segment_phys_addr, segment_base_addr, pages);
+/*
         if(EFI_ERROR(status)) {
             terminal_writestring("Mapping error: ");
             terminal_print_hex64(status);
             terminal_writestring("\n\r");
             return status;
-        }
+        }*/
     }
     terminal_writestring("Mapped kernel, jumping in!\n\r");
 
+    terminal_writestring("Kernel entry addr: 0x");
+    terminal_print_hex64(elf_header->entry_addr);
+    terminal_writestring("\n\r");
+
+    void *virtual_ptr_1 = OFFSETS_TO_ADDR(1, 64, 65, 64);
+    int *buffer_1 = virtual_ptr_1;
+    void *physical_addr = (void*)(uint64_t)0x1800000;
+    int *buffer_2 = physical_addr;
+
+    map_page(physical_addr, virtual_ptr_1);
+
+    terminal_writestring("Buffer 1: 0x");
+    terminal_print_hex64(buffer_1[0]);
+    terminal_writestring(", Buffer 2: 0x");
+    terminal_print_hex64(buffer_2[0]);
+
+    buffer_1[0] = 0x12345;
+
+    terminal_writestring(", Buffer 1: 0x");
+    terminal_print_hex64(buffer_1[0]);
+    terminal_writestring(", Buffer 2: 0x");
+    terminal_print_hex64(buffer_2[0]);
+    terminal_writestring("\n\r");
+
+    terminal_writestring("Kernel entry data: 0x");
+    terminal_print_hex64(*(uint64_t*)kernel_entry_addr);
+    terminal_writestring(", Kernel entry addr: 0x");
+    terminal_print_hex64(kernel_entry_addr);
+    terminal_writestring(", Kernel pages: 0x");
+    terminal_print_hex64(kernel_pages);
+    terminal_writestring(", Kernel entry data 2: 0x");
+    terminal_print_hex64(*(uint64_t*)elf_header->entry_addr);
+    terminal_writestring("\n\r");
+
     /* Call the kernel */
-    typedef void(*kmain_t)(struct boot_table*);
+    typedef uint64_t(*kmain_t)(struct boot_table*);
     kmain_t kmain = elf_header->entry_addr;
-    kmain(&boot_table);
-    terminal_writestring("Mapped kernel, jumping in!\n\r");
-    //jump_to_kmain(elf_header->entry_addr, &boot_table);
+    uint64_t kernel_return = kmain(&boot_table);
+
+    terminal_print_hex64(boot_table.graphics_mode.framebuffer_base);
+    terminal_writestring("\n\r");
+    terminal_print_hex64(kernel_return);
 
     return EFI_SUCCESS;
 

@@ -5,20 +5,20 @@
 #include <kernel/boot_table.h>
 #include <string.h>
 
-static size_t char_width;
-static size_t char_height;
-static size_t screen_width;
-static size_t screen_height;
+static uint64_t char_width;
+static uint64_t char_height;
+static uint64_t screen_width;
+static uint64_t screen_height;
 static char  *font_buffer;
 static u32 *framebuffer;
-static size_t framebuffer_size;
+static uint64_t framebuffer_size;
 static u32 fg_colour = 0x00FFFFFF;
 static u32 bg_colour = 0x00000000;
 
-static size_t terminal_column;
-static size_t terminal_row;
-static size_t TERMINAL_WIDTH; // Only set once in terminal_init, defines the number of characters across the terminal width
-static size_t TERMINAL_HEIGHT; // Only set once in terminal_init, defines the number of lines in the terminal
+static uint64_t terminal_column;
+static uint64_t terminal_row;
+static uint64_t TERMINAL_WIDTH; // Only set once in terminal_init, defines the number of characters across the terminal width
+static uint64_t TERMINAL_HEIGHT; // Only set once in terminal_init, defines the number of lines in the terminal
 
 int terminal_init(struct boot_table *boot_table) {
     struct psf2_header *psf = ((struct boot_table*)boot_table)->font_ptr;
@@ -48,8 +48,8 @@ void terminal_writestring(unsigned char *data) {
     terminal_write(data, strlen(data));
 }
 
-void terminal_write(unsigned char *data, size_t len) {
-    for (size_t i = 0; i < len; i++) {
+void terminal_write(unsigned char *data, uint64_t len) {
+    for (uint64_t i = 0; i < len; i++) {
         switch (data[i]) {
         case '\n':
             if (++terminal_row == TERMINAL_HEIGHT) {
@@ -89,7 +89,7 @@ void terminal_putchar(unsigned char c) {
     }
 }
 
-void terminal_putentryat(unsigned char c, size_t column, size_t row, u32 fg, u32 bg) {
+void terminal_putentryat(unsigned char c, uint64_t column, uint64_t row, u32 fg, u32 bg) {
     char *c_pixels = font_buffer + 
             ((struct psf2_header*)font_buffer)->headersize + 
             c * ((struct psf2_header*)font_buffer)->charsize;
@@ -109,7 +109,7 @@ void terminal_newline() {
     }
 }
 
-void terminal_cursor(size_t x, size_t y) {
+void terminal_cursor(uint64_t x, uint64_t y) {
     terminal_column = x;
     terminal_row = y;
     if (terminal_column >= TERMINAL_WIDTH) {

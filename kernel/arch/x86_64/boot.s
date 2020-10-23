@@ -4,21 +4,22 @@ section .text
 
 _start:
     mov rdi, rcx
-    
+
     extern early_kmain
     call early_kmain
+    ret
 
-    extern _init
-    call _init
+    ;extern _init
+    ;call _init
 
     extern kmain
     call kmain
 
-    extern _fini
-    call _fini
+    ;extern _fini
+    ;call _fini
 
-    cli
-.loop:
-    jmp .loop
+_kernel_halt:
+    hlt
+    jmp _kernel_halt
 
 .size: equ $ - _start

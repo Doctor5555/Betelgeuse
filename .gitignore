@@ -11,3 +11,5 @@ bin/OVMF.fd
 bin/hdd/efi/boot/bootx64.efi
 
 bin/hdd/test.out
+
+.vscode/

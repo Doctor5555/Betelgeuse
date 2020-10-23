@@ -1,20 +1,22 @@
 #ifndef _BOOT_TABLE_H
 #define _BOOT_TABLE_H
 
-#include <stddef.h>
+#include <stdint.h>
 
 struct boot_table {
     void *mem_table_ptr;
-    size_t mem_desc_size;
-    size_t mem_desc_count;
+    uint64_t mem_desc_size;
+    uint64_t mem_desc_count;
     void *font_ptr;
     unsigned long long kernel_start_ptr;
+    uint64_t next_available_mapping_page;
+    uint64_t available_mapping_page_count;
     struct {
-        size_t width;
-        size_t height;
-        size_t px_per_scan;
+        uint64_t width;
+        uint64_t height;
+        uint64_t px_per_scan;
         void *framebuffer_base;
-        size_t framebuffer_size;
+        uint64_t framebuffer_size;
     } graphics_mode;
 };
 
