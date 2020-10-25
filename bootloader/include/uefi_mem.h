@@ -54,6 +54,6 @@ efi_status map_page(physical_addr src_addr, virtual_addr dest_addr);
 
 uint64_t get_next_available_mapping_page();
 
-void get_mapping_ptrs_and_count(uint64_t *next_available_mapping_page, uint64_t *available_mapping_page_count);
+void get_mapping_ptrs_and_count(uint64_t *pml4_ptr, uint64_t *next_available_mapping_page, uint64_t *available_mapping_page_count);
 
 #endif /* _UEFI_MEM_H */

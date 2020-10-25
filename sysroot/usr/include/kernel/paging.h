@@ -1,5 +1,5 @@
-#ifndef _MEMORY_H
-#define _MEMORY_H
+#ifndef _PAGING_H
+#define _PAGING_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -57,13 +57,13 @@ void page_map(virtual_addr va_addr, physical_addr phys_addr);
  * Returns: next available physical page
  * Takes: none
  */
-uint64_t page_get();
+uint64_t page_get_next_available();
 
 /* 
  * Returns: first virtual address of continuous mapping
  * Takes:
  *  - count: number of continuous pages to map
  */
-uint64_t page_map_multiple(size_t count);
+uint64_t page_map_multiple(uint64_t count);
 
-#endif /* _MEMORY_H */
+#endif /* _PAGING_H */

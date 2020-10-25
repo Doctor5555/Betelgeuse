@@ -188,7 +188,8 @@ efi_status map_page(physical_addr phys_addr, virtual_addr va_addr) {
     return EFI_SUCCESS;
 }
 
-void get_mapping_ptrs_and_count(uint64_t *next_available_mapping_page_in, uint64_t *available_mapping_page_count_in) {
-    next_available_mapping_page_in = next_available_mapping_page;
-    available_mapping_page_count_in = available_mapping_page_count;
+void get_mapping_ptrs_and_count(uint64_t *pml4_ptr_in, uint64_t *next_available_mapping_page_in, uint64_t *available_mapping_page_count_in) {
+    *pml4_ptr_in = pml4_ptr;
+    *next_available_mapping_page_in = next_available_mapping_page;
+    *available_mapping_page_count_in = available_mapping_page_count;
 }

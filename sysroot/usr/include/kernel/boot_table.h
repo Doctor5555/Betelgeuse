@@ -11,6 +11,7 @@ struct boot_table {
     unsigned long long kernel_start_ptr;
     uint64_t next_available_mapping_page;
     uint64_t available_mapping_page_count;
+    uint64_t *pml4_ptr;
     struct {
         uint64_t width;
         uint64_t height;

@@ -74,13 +74,13 @@ u64 kmain() {/*
     printf("PCIDE: %#llx\n\r", b & (0x1 << 17));
 */
 
-    //efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
-    //u64 descriptor_size = boot_table.mem_desc_size;
-    //u64 descriptor_count = boot_table.mem_desc_count;
+    efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
+    u64 descriptor_size = boot_table.mem_desc_size;
+    u64 descriptor_count = boot_table.mem_desc_count;
 
-    //terminal_cursor(0, 0);
+    terminal_cursor(0, 0);
     
-    /*
+    ///*
     printf("Memory descriptor count: %#018llx\n\r", descriptor_count);
     u64 page_count = 0;
     for (size_t i = 0; i < descriptor_count; i++) {
@@ -96,6 +96,33 @@ u64 kmain() {/*
 
     printf("Total number of pages: %d, %#llx\n\r", page_count, page_count);
     //*/
+
+    uint64_t *pml4 = boot_table.pml4_ptr;
+    uint64_t pdp_count = 0;
+    uint64_t pd_count = 0;
+    for (int i = 0; i < 1; i++) {
+        if (pml4[i] & PRESENT_FLAG) {
+            uint64_t *pdp = pml4[i] & ADDR_MASK;
+            for (int j = 0; j < 512; j++) {
+                if (pdp[j] & PRESENT_FLAG) {
+                    pdp_count++;
+                    if (!(pdp[j] & PAGE_SIZE_FLAG)) {
+                        uint64_t *pd = pdp[j] & ADDR_MASK;
+                        for (int k = 0; k < 512; k++) {
+                            if (pd[k] & PRESENT_FLAG) {
+                                pd_count++;
+                                if ((pd[k] & ADDR_MASK) != OFFSETS_TO_ADDR(i, j, k, 0)) {
+                                    printf("pdp[%d] pd[%d] addr %#018llx != ADDR(%#x, %#x, %#x, 0) (%#018llx)\n\r", j, k, pd[k] & ADDR_MASK, i, j, k, OFFSETS_TO_ADDR(i, j, k, 0));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    printf("pdp_count: %#x (%d), pd_count: %#x (%d)\n\r", pdp_count, pdp_count, pd_count, pd_count);
 
 // kend:
     printf("Exiting!\n\r");

@@ -301,7 +301,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
 
     init_virtual_mapping(mem_map, desc_count, desc_size);
-    get_mapping_ptrs_and_count(&boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
+    get_mapping_ptrs_and_count(&boot_table.pml4_ptr, &boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
     
     /* Parse the kernel header and map it to the correct memory location */
     Elf64_program_table_entry *program_table_entries = 

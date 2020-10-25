@@ -58,10 +58,10 @@ void page_map(virtual_addr va_addr, physical_addr phys_addr) {
     }
 }
 
-uint64_t page_get() {
+uint64_t page_get_next_available() {
 
 }
 
-uint64_t page_map_multiple(size_t count) {
+uint64_t page_map_multiple(uint64_t count) {
 
 }
