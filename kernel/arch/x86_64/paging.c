@@ -8,7 +8,7 @@ static physical_addr next_available_mapping_page;
 static uint64_t available_mapping_page_count;
 
 uint64_t get_next_available_mapping_page() {
-    next_available_mapping_page + 0x1000;
+    next_available_mapping_page += 0x1000;
     available_mapping_page_count--;
     return next_available_mapping_page - 0x1000;
 }

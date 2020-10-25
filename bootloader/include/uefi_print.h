@@ -5,7 +5,7 @@
 
 efi_status print_init(efi_system_table *st_in);
 
-efi_status print_hex64(char16_t *msg, size_t val);
+efi_status print_hex64(char16_t *msg, uint64_t val);
 
 efi_status print(char16_t *msg);
 
