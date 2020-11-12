@@ -464,7 +464,8 @@ int printf(const char* restrict format, ...) {
                     num = va_arg(args, int);
                 } break;
                 }
-                if (format_type == Int16) {
+                switch (format_type) {
+                case Int16: {
                     if (num_prefix) {
                         putchar('0');
                         num_chars_written++;
@@ -478,22 +479,30 @@ int printf(const char* restrict format, ...) {
                     }
                     const char* chars_upper = "0123456789ABCDEF";
                     const char* chars_lower = "0123456789abcdef";
-                    size_t exp = 0;
-                    size_t val = 1;
-                    while (true) {
+                    uint64_t exp = 0;
+                    uint64_t val = 1;
+                    while (val < (1LLU << 60)) {
                         exp++;
                         val <<= 4;
                         if (val > num) {
                             break;
                         }
                     }
-                    char zfill_char = zero_fill ? '0' : ' ';
-                    if (!left_aligned)
+                    if (val < num) {
+                        exp++;
+                        putchar(
+                            capitals ? chars_upper[num / val] : chars_lower[num / val]);
+                        num_chars_written++;
+                        num %= val;
+                    }
+                    if (!left_aligned) {
+                        char zfill_char = zero_fill ? '0' : ' ';
                         while ((signed long long) (format_width - exp) > 0) {
                             putchar(zfill_char);
                             num_chars_written++;
                             exp++;
                         }
+                    }
                     while (val > 1) {
                         val >>= 4;
                         putchar(
@@ -501,13 +510,16 @@ int printf(const char* restrict format, ...) {
                         num_chars_written++;
                         num %= val;
                     }
-                    if (left_aligned)
+                    if (left_aligned) {
                         while (exp > 0) {
                             putchar(' ');
                             num_chars_written++;
-                            exp++;
+                            exp--;
                         }
-                } else if (format_type == Int8) {
+                    }
+                    break;
+                }
+                case Int8: {
                     if (num_prefix) {
                         putchar('0');
                         num_chars_written++;
@@ -519,20 +531,28 @@ int printf(const char* restrict format, ...) {
                     const char* chars_lower = "01234567";
                     size_t exp = 0;
                     size_t val = 1;
-                    while (true) {
+                    while (val < (1LLU << 63)) {
                         exp++;
                         val <<= 3;
                         if (val > num) {
                             break;
                         }
                     }
-                    char zfill_char = zero_fill ? '0' : ' ';
-                    if (!left_aligned)
+                    if (val < num) {
+                        exp++;
+                        putchar(
+                            capitals ? chars_upper[num / val] : chars_lower[num / val]);
+                        num_chars_written++;
+                        num %= val;
+                    }
+                    if (!left_aligned) {
+                        char zfill_char = zero_fill ? '0' : ' ';
                         while ((signed long long) (format_width - exp) > 0) {
                             putchar(zfill_char);
                             num_chars_written++;
                             exp++;
                         }
+                    }
                     if (num == 0) {
                         putchar('0');
                         num_chars_written++;
@@ -550,7 +570,9 @@ int printf(const char* restrict format, ...) {
                             putchar(' ');
                             num_chars_written++;
                         }
-                } else if (format_type == Int2) {
+                    break;
+                }
+                case Int2: {
                     if (num_prefix) {
                         putchar('0');
                         num_chars_written++;
@@ -566,20 +588,28 @@ int printf(const char* restrict format, ...) {
                     const char* chars_lower = "01";
                     size_t exp = 0;
                     size_t val = 1;
-                    while (true) {
+                    while (val < (1 << 63)) {
                         exp++;
                         val <<= 1;
                         if (val > num) {
                             break;
                         }
                     }
-                    char zfill_char = zero_fill ? '0' : ' ';
-                    if (!left_aligned)
+                    if (val < num) {
+                        exp++;
+                        putchar(
+                            capitals ? chars_upper[num / val] : chars_lower[num / val]);
+                        num_chars_written++;
+                        num %= val;
+                    }
+                    if (!left_aligned) {
+                        char zfill_char = zero_fill ? '0' : ' ';
                         while ((signed long long) (format_width - exp) > 0) {
                             putchar(zfill_char);
                             num_chars_written++;
                             exp++;
                         }
+                    }
                     if (num == 0) {
                         putchar('0');
                         num_chars_written++;
@@ -597,6 +627,8 @@ int printf(const char* restrict format, ...) {
                             putchar(' ');
                             num_chars_written++;
                         }
+                    break;
+                }
                 }
             } break;
             case String: {

@@ -85,13 +85,9 @@ u64 kmain() {/*
     u64 page_count = 0;
     for (size_t i = 0; i < descriptor_count; i++) {
         efi_memory_descriptor *descriptor = boot_table.mem_table_ptr + i * descriptor_size;
-        page_count += descriptor->NumberOfPages;
-        if (descriptor->Attribute & 0x8000000000000000)
-            printf("index: %2d, attribute: 0x8%015llx, num pages: %#010llx, physical start: %#010llx, virt start: %#010llx, type: %#010x\n\r", 
-                    i, descriptor->Attribute & 0x7fffffffffffffff, descriptor->NumberOfPages, descriptor->PhysicalStart, descriptor->VirtualStart, descriptor->Type);
-        else
-            printf("index: %2d, attribute: %#018llx, num pages: %#010llx, physical start: %#010llx, virt start: %#010llx, type: %#010x\n\r", 
-                    i, descriptor->Attribute, descriptor->NumberOfPages, descriptor->PhysicalStart, descriptor->VirtualStart, descriptor->Type);
+        page_count += descriptor->number_of_pages;
+        printf("index: %2d, attribute: %#018llx, num pages: %#010llx, physical start: %#010llx, virt start: %#010llx, type: %#010x\n\r", 
+                i, descriptor->attribute, descriptor->number_of_pages, descriptor->physical_start, descriptor->virtual_start, descriptor->type);
     }
 
     printf("Total number of pages: %d, %#llx\n\r", page_count, page_count);
