@@ -71,6 +71,8 @@ u64 kmain() {
     u64 descriptor_size = boot_table.mem_desc_size;
     u64 descriptor_count = boot_table.mem_desc_count;
 
+    memory_init(memory_map, descriptor_size, descriptor_count);
+
     terminal_cursor(0, 0);
     
     ///*

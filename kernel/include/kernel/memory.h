@@ -3,7 +3,18 @@
 
 #include <stdint.h>
 
+#include <efi_memory_descriptor.h>
+
 typedef uint64_t pageframe_t;
+
+/*
+ * Returns: 1 for success, 0 for failure
+ * Takes:
+ *  - mmap: pointer to UEFI memory map
+ *  - dsize: descriptor size in bytes
+ *  - dcount: descriptor count
+ */
+uint8_t memory_init(efi_memory_descriptor *mmap, uint64_t dsize, uint64_t dcount);
 
 /*
  * Returns: a newly allocated page frame
