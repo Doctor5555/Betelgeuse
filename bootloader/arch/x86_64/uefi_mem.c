@@ -51,6 +51,7 @@ efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descrip
             (descriptor->Type == 0x7) && 
             !(descriptor->Attribute & 0x8000000000000000)) {
             dest_index = i;
+            descriptor->Type = 0x10;
             break;
         }
         if (i == descriptor_count - 1) {

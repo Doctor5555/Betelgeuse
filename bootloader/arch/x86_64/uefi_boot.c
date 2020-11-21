@@ -30,7 +30,7 @@ Launch selected kernel
 #include "uefi_file.h"
 #include "uefi_elf.h"
 #include "uefi_mem.h"
-#include "boot_table.h"
+#include "bootloader/boot_table.h"
 #include "uefi_tty.h"
 
 #undef ERR

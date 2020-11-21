@@ -12,8 +12,27 @@
 typedef uint64_t efi_physical_addr;
 typedef uint64_t efi_virtual_addr;
 
+typedef enum {
+  EfiReservedMemoryType,
+  EfiLoaderCode,
+  EfiLoaderData,
+  EfiBootServicesCode,
+  EfiBootServicesData,
+  EfiRuntimeServicesCode,
+  EfiRuntimeServicesData,
+  EfiConventionalMemory,
+  EfiUnusableMemory,
+  EfiACPIReclaimMemory,
+  EfiACPIMemoryNVS,
+  EfiMemoryMappedIO,
+  EfiMemoryMappedIOPortSpace,
+  EfiPalCode,
+  EfiPersistentMemory,
+  EfiMaxMemoryType
+} efi_memory_type;
+
 typedef struct {
-  uint32_t type;
+  efi_memory_type type;
   efi_physical_addr physical_start;
   efi_virtual_addr virtual_start;
   uint64_t number_of_pages;

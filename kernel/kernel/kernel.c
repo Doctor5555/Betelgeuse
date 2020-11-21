@@ -1,6 +1,7 @@
-#include <kernel/boot_table.h>
+#include <bootloader/boot_table.h>
 #include <kernel/tty.h>
 #include <kernel/paging.h>
+#include <kernel/memory.h>
 #include <stdio.h>
 #include <string.h>
 #include <types.h>
@@ -30,17 +31,9 @@ int ssp_test(const char *test) {
     return dest[2] & test[1];
 }
 
-uint64_t kmain() {/*
-    if (boot_table.kernel_start_ptr == 0) {
-        printf("Kernel start ptr is zero! This should not be the case!\n\r");
-    } else {
-        printf("boot_table->kernel_start_ptr: %#018llx\n\r", boot_table.kernel_start_ptr);
-    }*/
-
-    //terminal_writestring("Hello, World!");
-
-    uint32_t fg = 0xFFFFFF;
-    uint32_t bg = 0;
+u64 kmain() {
+    u32 fg = 0xFFFFFF;
+    u32 bg = 0;
     terminal_setcolour(fg, bg);
     uint32_t x = 0;
     uint32_t y = 7;
@@ -77,6 +70,8 @@ uint64_t kmain() {/*
     efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
+
+    memory_init(memory_map, descriptor_size, descriptor_count);
 
     terminal_cursor(0, 0);
     
