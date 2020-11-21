@@ -15,7 +15,7 @@ INCLUDEDIR?=$(PREFIX)/include
 RESDIR?=/resources
 
 CFLAGS   := $(CFLAGS) -ffreestanding -Wall -Wextra -fstack-protector
-CPPFLAGS := $(CPPFLAGS) -D__is_kernel -Iinclude
+CPPFLAGS := $(CPPFLAGS) -D__is_kernel -Iinclude -I../bootloder/include
 LDFLAGS  := $(LDFLAGS)
 LIBS     := $(LIBS) -nostdlib -L$(DESTDIR)$(PREFIX)/lib -lk -lgcc
 
