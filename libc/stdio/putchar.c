@@ -6,7 +6,7 @@
 
 int putchar(int ic) {
 #if defined(__is_libk)
-    char c = (char) ic;
+    unsigned char c = (unsigned char) ic;
     terminal_write(&c, sizeof(c));
 #else
     // @TODO: Implement system calls

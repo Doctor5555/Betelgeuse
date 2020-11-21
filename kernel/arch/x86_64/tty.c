@@ -10,10 +10,10 @@ static uint64_t char_height;
 static uint64_t screen_width;
 static uint64_t screen_height;
 static char  *font_buffer;
-static u32 *framebuffer;
+static uint32_t *framebuffer;
 static uint64_t framebuffer_size;
-static u32 fg_colour = 0x00FFFFFF;
-static u32 bg_colour = 0x00000000;
+static uint32_t fg_colour = 0x00FFFFFF;
+static uint32_t bg_colour = 0x00000000;
 
 static uint64_t terminal_column;
 static uint64_t terminal_row;
@@ -29,7 +29,7 @@ int terminal_init(struct boot_table *boot_table) {
     char_height = psf->height;
     screen_width = boot_table->graphics_mode.width;
     screen_height = boot_table->graphics_mode.height;
-    font_buffer = (unsigned char*)psf;
+    font_buffer = (char*)psf;
     framebuffer = boot_table->graphics_mode.framebuffer_base;
     framebuffer_size = boot_table->graphics_mode.framebuffer_size;
     TERMINAL_WIDTH = screen_width / char_width;
@@ -39,7 +39,7 @@ int terminal_init(struct boot_table *boot_table) {
     return 0;
 }
 
-void terminal_setcolour(u32 fg, u32 bg) {
+void terminal_setcolour(uint32_t fg, uint32_t bg) {
     fg_colour = fg;
     bg_colour = bg;
 }
@@ -89,7 +89,7 @@ void terminal_putchar(unsigned char c) {
     }
 }
 
-void terminal_putentryat(unsigned char c, uint64_t column, uint64_t row, u32 fg, u32 bg) {
+void terminal_putentryat(unsigned char c, uint64_t column, uint64_t row, uint32_t fg, uint32_t bg) {
     char *c_pixels = font_buffer + 
             ((struct psf2_header*)font_buffer)->headersize + 
             c * ((struct psf2_header*)font_buffer)->charsize;

@@ -30,7 +30,7 @@ int ssp_test(const char *test) {
     return dest[2] & test[1];
 }
 
-u64 kmain() {/*
+uint64_t kmain() {/*
     if (boot_table.kernel_start_ptr == 0) {
         printf("Kernel start ptr is zero! This should not be the case!\n\r");
     } else {
@@ -39,11 +39,11 @@ u64 kmain() {/*
 
     //terminal_writestring("Hello, World!");
 
-    u32 fg = 0xFFFFFF;
-    u32 bg = 0;
+    uint32_t fg = 0xFFFFFF;
+    uint32_t bg = 0;
     terminal_setcolour(fg, bg);
-    u32 x = 0;
-    u32 y = 7;
+    uint32_t x = 0;
+    uint32_t y = 7;
     terminal_setcolour(0xDCDCDC, bg);
     for (unsigned char i = 0x00; i < 0xFF; i++) {
         terminal_putchar(i);
@@ -66,7 +66,7 @@ u64 kmain() {/*
     */
 
 /*
-    u64 b = 0;
+    uint64_t b = 0;
     __asm__ __volatile__ (
         "movq %%cr4, %0;" : "=r" (b) :
     );
@@ -75,14 +75,14 @@ u64 kmain() {/*
 */
 
     efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
-    u64 descriptor_size = boot_table.mem_desc_size;
-    u64 descriptor_count = boot_table.mem_desc_count;
+    uint64_t descriptor_size = boot_table.mem_desc_size;
+    uint64_t descriptor_count = boot_table.mem_desc_count;
 
     terminal_cursor(0, 0);
     
     ///*
     printf("Memory descriptor count: %#018llx\n\r", descriptor_count);
-    u64 page_count = 0;
+    uint64_t page_count = 0;
     for (size_t i = 0; i < descriptor_count; i++) {
         efi_memory_descriptor *descriptor = boot_table.mem_table_ptr + i * descriptor_size;
         page_count += descriptor->number_of_pages;
