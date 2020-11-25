@@ -31,9 +31,9 @@ int ssp_test(const char *test) {
     return dest[2] & test[1];
 }
 
-u64 kmain() {
-    u32 fg = 0xFFFFFF;
-    u32 bg = 0;
+uint64_t kmain() {
+    uint32_t fg = 0xFFFFFF;
+    uint32_t bg = 0;
     terminal_setcolour(fg, bg);
     uint32_t x = 0;
     uint32_t y = 7;
@@ -71,7 +71,9 @@ u64 kmain() {
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
 
-    memory_init(memory_map, descriptor_size, descriptor_count);
+    uint8_t result = memory_init(memory_map, descriptor_size, descriptor_count);
+    printf("Memory init result: %d\n", result);
+    goto kend;
 
     terminal_cursor(0, 0);
     
@@ -115,7 +117,7 @@ u64 kmain() {
 
     printf("pdp_count: %#x (%d), pd_count: %#x (%d)\n\r", pdp_count, pdp_count, pd_count, pd_count);
 
-// kend:
+kend:
     printf("Exiting!\n\r");
     return 0xBE2E76E43E;
 }

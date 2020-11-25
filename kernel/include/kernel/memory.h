@@ -5,22 +5,28 @@
 
 #include <efi_memory_descriptor.h>
 
+/*
+ * 64-bit address of a page
+ */
 typedef uint64_t pageframe_t;
 
 /*
- * Returns: 1 for success, 0 for failure
+ * Returns: 0 for success, -1 for failure
  * Takes:
  *  - mmap: pointer to UEFI memory map
  *  - dsize: descriptor size in bytes
  *  - dcount: descriptor count
  */
-uint8_t memory_init(efi_memory_descriptor *mmap, uint64_t dsize, uint64_t dcount);
+int8_t memory_init(efi_memory_descriptor *mmap, uint64_t dsize, uint64_t dcount);
 
 /*
- * Returns: a newly allocated page frame
- * Takes: none
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
  */
-pageframe_t page_frame_alloc();
+int8_t page_frame_alloc(pageframe_t *frame);
 
 /*
  * Returns: none
