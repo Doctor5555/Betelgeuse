@@ -1,10 +1,10 @@
 #include <string.h>
 
-void *memcpy(void * restrict destptr, const void * restrict srcptr, size_t len) {
-    unsigned char *dest = (unsigned char *)destptr;
-    const unsigned char *src = (const unsigned char *)srcptr;
+void *memcpy(void * restrict dest_pointer, const void * restrict source_pointer, size_t len) {
+    unsigned char *dest = (unsigned char *)dest_pointer;
+    const unsigned char *source = (const unsigned char *)source_pointer;
     for (size_t i = 0; i < len; i++) {
-        dest[len] = src[len];
+        dest[len] = source[len];
     }
     return dest;
 }

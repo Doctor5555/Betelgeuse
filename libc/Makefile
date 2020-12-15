@@ -16,8 +16,8 @@ LIBDIR?=$(EXEC_PREFIX)/lib
 CFLAGS:=$(CFLAGS) -ffreestanding -Wall -Wextra -fstack-protector
 CPPFLAGS:=$(CPPFLAGS) -D__is_libc -Iinclude
 LIBK_CFLAGS:=$(CFLAGS)
-LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk
- 
+LIBK_CPPFLAGS:=$(CPPFLAGS) -D__is_libk -I../bootloader/include
+
 ARCHDIR=arch/$(HOSTARCH)
 
 include $(ARCHDIR)/make.config

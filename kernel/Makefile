@@ -32,7 +32,8 @@ KERNEL_OBJS=\
 $(KERNEL_ARCH_OBJS) \
 kernel/kernel.o \
 kernel/memory.o \
-kernel/panic.o
+kernel/panic.o \
+kernel/serial.o
 
 CRTI_OBJ=crti.o
 CRTBEGIN_OBJ:=$(shell $(CC) $(CFLAGS) -print-file-name=crtbegin.o)

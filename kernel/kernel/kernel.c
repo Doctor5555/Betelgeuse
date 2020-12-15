@@ -1,7 +1,7 @@
 #include <bootloader/boot_table.h>
 #include <kernel/tty.h>
-#include <kernel/paging.h>
 #include <kernel/memory.h>
+#include <kernel/serial.h>
 #include <stdio.h>
 #include <string.h>
 #include <types.h>
@@ -10,14 +10,16 @@
 
 struct boot_table boot_table;
 
-uint64_t early_kmain(struct boot_table *boot_table_ptr) {
-    boot_table = *boot_table_ptr;
+uint64_t early_kmain(struct boot_table *boot_table_pointer) {
+    boot_table = *boot_table_pointer;
     terminal_init(&boot_table);
+    //serial_init();
     terminal_writestring("Hello, World from early kmain!\n\r");
     return boot_table.graphics_mode.framebuffer_base;
 }
 
-__attribute__ ((constructor)) void constructor_test() {
+__attribute__ ((constructor))
+void constructor_test() {
     terminal_writestring((unsigned char *)"Hello, Constructor World!\n\r");
 }
 

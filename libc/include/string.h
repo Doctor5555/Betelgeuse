@@ -7,11 +7,11 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/*void strcpy(char *dest, char *src);
-void strncpy(char *dest, char *src, size_t n);
+/*void strcpy(char *dest, char *source);
+void strncpy(char *dest, char *source, size_t n);
 
-void strcat(char* dest, char *src);
-void strncat(char *dest, char *src, size_t n);
+void strcat(char* dest, char *source);
+void strncat(char *dest, char *source, size_t n);
 
 void strxfrm(char *string);*/
 
