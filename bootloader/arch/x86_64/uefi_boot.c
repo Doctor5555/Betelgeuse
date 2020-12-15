@@ -300,7 +300,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = st->BootServices->ExitBootServices(handle, map_key);
     ERR(status);
 
-    init_virtual_mapping(mem_map, desc_count, desc_size);
+    init_virtual_mapping(mem_map, desc_count, desc_size, MAPPING_TYPE_MAP_ALL, &boot_table.mapping_base);
     get_mapping_pointers_and_count(&boot_table.pml4_pointer, &boot_table.used_mapping_page_count);
 
     /* Parse the kernel header and map it to the correct memory location */

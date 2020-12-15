@@ -48,7 +48,15 @@
 typedef uint64_t physical_addr;
 typedef uint64_t virtual_addr;
 
-efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descriptor_count, uint64_t descriptor_size);
+enum mapping_type {
+    MAPPING_TYPE_NONE = 0,
+    MAPPING_TYPE_MAP_ALL,
+    MAPPING_TYPE_RECURSIVE,
+
+    MAPPING_TYPE_END
+};
+
+efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descriptor_count, uint64_t descriptor_size, enum mapping_type mapping_type, uint64_t *mapping_base);
 efi_status map_pages(physical_addr src_addr, virtual_addr dest_addr, uint64_t page_count);
 efi_status map_page(physical_addr src_addr, virtual_addr dest_addr);
 

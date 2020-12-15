@@ -14,7 +14,7 @@ uint64_t get_next_available_mapping_page() {
     return next_available_mapping_page - 0x1000;
 }
 
-efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descriptor_count, uint64_t descriptor_size) {
+efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descriptor_count, uint64_t descriptor_size, enum mapping_type mapping_type, uint64_t *mapping_base) {
     /* CR3 holds the address of the highest level page mapping table */
     uint64_t cr3;
     __asm__ __volatile__ (
@@ -123,10 +123,33 @@ efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descrip
     );
 
     /* Set the old page tables to R/W */
-    /*struct PML4_entry *pml4_pml4 = (struct PML4_entry *)cr3 + ((uint64_t)(PML4_MASK(old_pml4)) >> PML4_OFFSET);
-    struct PDP_entry *pml4_pdp = (struct PDP_entry*)(uint64_t)(pml4_pml4->addr << 12) + ((uint64_t)(PDP_MASK(old_pml4)) >> PDP_OFFSET);
-    struct PD_entry_2M *pml4_pd = (struct PD_entry_2M*)(uint64_t)(pml4_pdp->addr << 12) + ((uint64_t)(PD_MASK(old_pml4)) >> PD_OFFSET);
-    pml4_pd->R_W = 1;*/
+    uint64_t pml4_pml4 = *((uint64_t *)cr3 + ((uint64_t)(PML4_MASK(old_pml4)) >> PML4_OFFSET));
+    uint64_t pml4_pdp = *((uint64_t*)(pml4_pml4 & ADDR_MASK) + ((uint64_t)(PDP_MASK(old_pml4)) >> PDP_OFFSET));
+    uint64_t *pml4_pd = (uint64_t*)(pml4_pdp & ADDR_MASK) + ((uint64_t)(PD_MASK(old_pml4)) >> PD_OFFSET);
+    *pml4_pd |= WRITABLE_FLAG;
+
+    /* Set up mapping */
+    if (mapping_type == MAPPING_TYPE_RECURSIVE) {
+        pml4[510] = PRESENT_FLAG | WRITABLE_FLAG | (uint64_t)pml4;
+        *mapping_base = 510 << PML4_OFFSET;
+    } else if (mapping_type == MAPPING_TYPE_MAP_ALL) {
+        uint64_t *pml4_ptr = cr3;
+        /* Count the number of pml4 entries required */
+        uint16_t count = 0;
+        for (uint16_t i = 0; i < 512; i++) {
+            if (pml4_pointer[i] & PRESENT_FLAG) {
+                count++;
+            }
+        }
+        uint16_t start_index = 510 - count;
+        for (uint16_t i = 0; i < count; i++) {
+            pml4[i + start_index] = pml4[i] & ADDR_MASK;
+            pml4[i + start_index] |= PRESENT_FLAG | WRITABLE_FLAG;
+        }
+        *mapping_base = start_index << PML4_OFFSET;
+    } else {
+        *mapping_base = 0;
+    }
 
     return EFI_SUCCESS;
 }
