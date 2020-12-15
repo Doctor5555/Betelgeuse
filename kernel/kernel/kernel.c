@@ -73,8 +73,8 @@ uint64_t kmain() {
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
 
-    uint8_t result = memory_init(memory_map, descriptor_size, descriptor_count);
-    printf("Memory init result: %d\n", result);
+    uint8_t result = memory_init(&boot_table);
+    printf("Memory init result: %d\n\r", result);
     goto kend;
 
     terminal_cursor(0, 0);

@@ -1,7 +1,7 @@
 #ifndef _TTY_H
 #define _TTY_H
 
-#include <kernel/boot_table.h>
+#include <bootloader/boot_table.h>
 
 int terminal_init(struct boot_table *boot_table);
 void terminal_setcolour(unsigned int fg, unsigned int bg);

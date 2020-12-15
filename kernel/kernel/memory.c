@@ -53,7 +53,10 @@ uint8_t page_get_status(uint64_t ptr) {
 #define DESCRIPTOR(map, index) ((map) + (index) * dsize)
 
 /* @TODO: Rename this function to something better */
-int8_t memory_init(efi_memory_descriptor *mmap, uint64_t dsize, uint64_t dcount) {
+int8_t memory_init(struct boot_table *boot_table) {
+    efi_memory_descriptor *mmap = boot_table->mem_table_ptr;
+    uint64_t dsize = boot_table->mem_desc_size;
+    uint64_t dcount = boot_table->mem_desc_count;
     for (uint64_t index = 0; index < dcount; index++) {
         efi_memory_descriptor *d = DESCRIPTOR(mmap, index);
 
