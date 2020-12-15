@@ -54,7 +54,7 @@ uint8_t page_get_status(uint64_t ptr) {
 
 /* @TODO: Rename this function to something better */
 int8_t memory_init(struct boot_table *boot_table) {
-    efi_memory_descriptor *mmap = boot_table->mem_table_ptr;
+    efi_memory_descriptor *mmap = boot_table->mem_table_pointer;
     uint64_t dsize = boot_table->mem_desc_size;
     uint64_t dcount = boot_table->mem_desc_count;
     for (uint64_t index = 0; index < dcount; index++) {

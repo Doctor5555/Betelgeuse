@@ -35,7 +35,7 @@ static size_t strlen(const char* str) {
 }
 
 int terminal_init(struct boot_table *boot_table) {
-    struct psf2_header *psf = ((struct boot_table*)boot_table)->font_ptr;
+    struct psf2_header *psf = ((struct boot_table*)boot_table)->font_pointer;
     if (!PSF2_MAGIC_OK(psf->magic)) {
         return 1; // Magic is not OK now!
     }

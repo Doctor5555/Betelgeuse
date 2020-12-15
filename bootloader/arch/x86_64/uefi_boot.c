@@ -270,7 +270,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
     print(u"\n\r");
 
-    boot_table.kernel_start_ptr = (unsigned long long)elf_header->entry_addr;
+    boot_table.kernel_start_pointer = (unsigned long long)elf_header->entry_addr;
 
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
@@ -291,18 +291,18 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     }
     size_t desc_count = map_size / desc_size;
 
-    boot_table.mem_table_ptr = memmap_buf;
+    boot_table.mem_table_pointer = memmap_buf;
     boot_table.mem_desc_size = desc_size;
     boot_table.mem_desc_count = desc_count;
-    boot_table.font_ptr = psf_buf;
+    boot_table.font_pointer = psf_buf;
 
     /* Exit boot services and init virtual mapping*/
     status = st->BootServices->ExitBootServices(handle, map_key);
     ERR(status);
 
     init_virtual_mapping(mem_map, desc_count, desc_size);
-    get_mapping_ptrs_and_count(&boot_table.pml4_ptr, &boot_table.next_available_mapping_page, &boot_table.available_mapping_page_count);
-    
+    get_mapping_pointers_and_count(&boot_table.pml4_pointer, &boot_table.used_mapping_page_count);
+
     /* Parse the kernel header and map it to the correct memory location */
     Elf64_program_table_entry *program_table_entries = 
             (Elf64_program_table_entry*)((uint64_t)elf_header + elf_header->prog_header_table_offset);

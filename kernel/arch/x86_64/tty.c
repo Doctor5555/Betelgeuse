@@ -2,7 +2,7 @@
 
 #include <types.h>
 #include <kernel/psf.h>
-#include <kernel/boot_table.h>
+#include <bootloader/boot_table.h>
 #include <string.h>
 
 static uint64_t char_width;
@@ -21,7 +21,7 @@ static uint64_t TERMINAL_WIDTH; // Only set once in terminal_init, defines the n
 static uint64_t TERMINAL_HEIGHT; // Only set once in terminal_init, defines the number of lines in the terminal
 
 int terminal_init(struct boot_table *boot_table) {
-    struct psf2_header *psf = ((struct boot_table*)boot_table)->font_ptr;
+    struct psf2_header *psf = ((struct boot_table*)boot_table)->font_pointer;
     if (!PSF2_MAGIC_OK(psf->magic)) {
         return 1; // Magic is not OK now!
     }

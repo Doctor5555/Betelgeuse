@@ -69,7 +69,7 @@ uint64_t kmain() {
     printf("PCIDE: %#llx\n\r", b & (0x1 << 17));
 */
 
-    efi_memory_descriptor *memory_map = boot_table.mem_table_ptr;
+    efi_memory_descriptor *memory_map = boot_table.mem_table_pointer;
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
 
@@ -83,7 +83,7 @@ uint64_t kmain() {
     printf("Memory descriptor count: %#018llx\n\r", descriptor_count);
     uint64_t page_count = 0;
     for (size_t i = 0; i < descriptor_count; i++) {
-        efi_memory_descriptor *descriptor = boot_table.mem_table_ptr + i * descriptor_size;
+        efi_memory_descriptor *descriptor = boot_table.mem_table_pointer + i * descriptor_size;
         page_count += descriptor->number_of_pages;
         printf("index: %2d, attribute: %#018llx, num pages: %#010llx, physical start: %#010llx, virt start: %#010llx, type: %#010x\n\r", 
                 i, descriptor->attribute, descriptor->number_of_pages, descriptor->physical_start, descriptor->virtual_start, descriptor->type);
@@ -92,7 +92,7 @@ uint64_t kmain() {
     printf("Total number of pages: %d, %#llx\n\r", page_count, page_count);
     //*/
 
-    uint64_t *pml4 = boot_table.pml4_ptr;
+    uint64_t *pml4 = boot_table.pml4_pointer;
     uint64_t pdp_count = 0;
     uint64_t pd_count = 0;
     for (int i = 0; i < 1; i++) {
