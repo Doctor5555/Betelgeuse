@@ -69,6 +69,8 @@ uint64_t kmain() {
     printf("PCIDE: %#llx\n\r", b & (0x1 << 17));
 */
 
+    printf("boot_table.mapping_base: %#018llx\n\r", boot_table.mapping_base);
+
     efi_memory_descriptor *memory_map = boot_table.mem_table_pointer;
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
