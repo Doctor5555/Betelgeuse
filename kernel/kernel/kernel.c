@@ -13,14 +13,14 @@ struct boot_table boot_table;
 uint64_t early_kmain(struct boot_table *boot_table_pointer) {
     boot_table = *boot_table_pointer;
     terminal_init(&boot_table);
-    //serial_init();
+    serial_init();
     terminal_writestring("Hello, World from early kmain!\n\r");
     return boot_table.graphics_mode.framebuffer_base;
 }
 
 __attribute__ ((constructor))
 void constructor_test() {
-    terminal_writestring((unsigned char *)"Hello, Constructor World!\n\r");
+    terminal_writestring("Hello, Constructor World!\n\r");
 }
 
 __attribute__ ((noinline))

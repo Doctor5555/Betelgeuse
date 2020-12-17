@@ -25,7 +25,7 @@
 #define VA_GET_PD_INDEX(x)   (PD_MASK(x) >> PD_OFFSET)
 #define VA_GET_PT_INDEX(x)   (PT_MASK(x) >> PT_OFFSET)
 
-#define OFFSETS_TO_ADDR(pml4, pdp, pd, pt) ((((uint64_t)(pml4) & 0x200 ? 0xffffUL : 0x0UL) << CANONICAL_OFFSET) | \
+#define OFFSETS_TO_ADDR(pml4, pdp, pd, pt) ((((uint64_t)(pml4) & 0x100ULL ? 0xffffULL : 0x0ULL) << CANONICAL_OFFSET) | \
                                              ((uint64_t)(pml4) << PML4_OFFSET) | \
                                              ((uint64_t)(pdp)  << PDP_OFFSET) | \
                                              ((uint64_t)(pd)   << PD_OFFSET) | \

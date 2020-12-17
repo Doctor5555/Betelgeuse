@@ -53,13 +53,26 @@ int8_t memory_init(struct boot_table *boot_table) {
     efi_memory_descriptor *mmap = boot_table->mem_table_pointer;
     uint64_t dsize = boot_table->mem_desc_size;
     uint64_t dcount = boot_table->mem_desc_count;
-    uint64_t required_pages = 32;
+    uint64_t required_pages = 32; // @TODO: Calculate this in case I forget
     printf("DESCRIPTOR(mmap, dcount - 1)->physical_start: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->physical_start);
     printf("DESCRIPTOR(mmap, dcount - 1)->number_of_pages: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->number_of_pages);
     uint64_t reserved_pages = UINT64_MAX;
     uint64_t reserved_index = 0;
+
+    struct {
+        uint8_t font_buffer : 1;
+        uint8_t kernel : 1;
+    } type_correction_to_do = { 0, 0 };
     for (uint64_t i = 0; i < dcount; i++) {
         efi_memory_descriptor *d = DESCRIPTOR(mmap, i);
+        if (d->physical_start <= boot_table->font_pointer && type_correction_to_do.font_buffer) {
+            d->type = 0x12;
+            type_correction_to_do.font_buffer = 0;
+        }
+        if (d->physical_start <= boot_table->kernel_start_pointer && type_correction_to_do.kernel) {
+            d->type = 0x12;
+            type_correction_to_do.kernel = 0;
+        }
         switch (d->type) {
         case EfiLoaderCode:
         case EfiLoaderData:
@@ -84,18 +97,21 @@ int8_t memory_init(struct boot_table *boot_table) {
     printf("Allocated location: %#018llx\n\r", page_bitmap);
     // Multiply by 512 - number of uint64_t s in a page - to get full array length.
     page_bitmap_length = required_pages << 9;
+    for (uint64_t i = 0; i < page_bitmap_length; i++) {
+        page_bitmap[i] = 0xFFFFFFFFFFFFFFFF;
+    }
     for (uint64_t index = 0; index < dcount; index++) {
         efi_memory_descriptor *d = DESCRIPTOR(mmap, index);
         /* Check whether this descriptor is free or not */
         switch (d->type)
         {
         case 0x10: { /* custom setting for kernel page maps */
-            for (uint64_t i = 0; i < boot_table->used_mapping_page_count; i++) {
+            /*for (uint64_t i = 0; i < boot_table->used_mapping_page_count; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
                 uint8_t bitmap_offset = addr & 0b111111;
                 page_bitmap[bitmap_index] |= 1 << bitmap_offset;
-            }
+            }*/
             for (uint64_t i = boot_table->used_mapping_page_count; i < d->number_of_pages; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
@@ -105,12 +121,12 @@ int8_t memory_init(struct boot_table *boot_table) {
             break;
         }
         case 0x11: { /* custom setting for page bitmap */
-            for (uint64_t i = 0; i < required_pages; i++) {
+            /*for (uint64_t i = 0; i < required_pages; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
                 uint8_t bitmap_offset = addr & 0b111111;
                 page_bitmap[bitmap_index] |= 1 << bitmap_offset;
-            }
+            }*/
             for (uint64_t i = required_pages; i < d->number_of_pages; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
@@ -125,12 +141,14 @@ int8_t memory_init(struct boot_table *boot_table) {
         case EfiBootServicesCode:
         case EfiBootServicesData:
         case EfiConventionalMemory: {
+            // @TODO: Optimise this to set whole entries if it spans a large enough range
             for (uint64_t i = 0; i < d->number_of_pages; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
                 uint8_t bitmap_offset = addr & 0b111111;
                 page_bitmap[bitmap_index] &= ~(1 << bitmap_offset);
             }
+            break;
         }
 
         /*case EfiReservedMemoryType:
@@ -143,14 +161,15 @@ int8_t memory_init(struct boot_table *boot_table) {
         case EfiMemoryMappedIOPortSpace:
         case EfiPalCode:
         case EfiPersistentMemory:
-        case EfiMaxMemoryType:*/
+        case EfiMaxMemoryType:
+        case 0x12:*/
         default: {
-            for (uint64_t i = 0; i < d->number_of_pages; i++) {
+            /*for (uint64_t i = 0; i < d->number_of_pages; i++) {
                 uint64_t addr = d->physical_start >> 12 + i;
                 uint64_t bitmap_index = addr >> 6;
                 uint8_t bitmap_offset = addr & 0b111111;
                 page_bitmap[bitmap_index] |= 1 << bitmap_offset;
-            }
+            }*/
             break;
         }
         }

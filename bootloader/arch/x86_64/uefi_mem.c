@@ -141,12 +141,12 @@ efi_status init_virtual_mapping(efi_memory_descriptor *mem_map, uint64_t descrip
                 count++;
             }
         }
-        uint16_t start_index = 510 - count;
+        uint64_t start_index = 511 - count;
         for (uint16_t i = 0; i < count; i++) {
             pml4[i + start_index] = pml4[i] & ADDR_MASK;
             pml4[i + start_index] |= PRESENT_FLAG | WRITABLE_FLAG;
         }
-        *mapping_base = start_index << PML4_OFFSET;
+        *mapping_base = OFFSETS_TO_ADDR(start_index, 0, 0, 0);
     } else {
         *mapping_base = 0;
     }
