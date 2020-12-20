@@ -113,11 +113,20 @@ int8_t page_map_set(void *pml4_pointer);
 /*
  * Returns: 0 for success, -1 for failure
  * Takes:
- *  - mmap: pointer to UEFI memory map
- *  - dsize: descriptor size in bytes
- *  - dcount: descriptor count
+ *  - boot_table: the boot table passed by 
+ *                the loader
  */
 int8_t memory_init(struct boot_table *boot_table);
+
+/*
+ * Returns: 0 for success, -1 for failure
+ * Takes:
+ *  - memory_offset: address at which all physical
+ *                   memory is re-mapped
+ *  - pml4: physical address of the highest page
+ *          mapping level.
+ */
+int8_t page_mapper_init(uint64_t memory_offset, uint64_t *pml4);
 
 /*
  * Returns: error code (-1 -> failed, 0 -> success)

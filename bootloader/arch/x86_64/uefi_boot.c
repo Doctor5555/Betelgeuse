@@ -45,16 +45,6 @@ static unsigned char *stack_ptr = scratch_stack;
 
 static efi_system_table *st;
 
-/*
-void __attribute__((noreturn)) 
-jump_to_kmain(uint64_t entry_addr, void *boot_table) {
-    __asm__ __volatile__ (
-        "movq %0, %%rax;"
-        "movq %1, %%rcx;"
-        "jmp *%%rax": : "r" (entry_addr), "r" (boot_table)
-    );
-}*/
-
 efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table *st_in) {
     st = st_in;
     print_init(st);
@@ -270,8 +260,6 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     ERR(status);
     print(u"\n\r");
 
-    boot_table.kernel_start_pointer = (unsigned long long)elf_header->entry_addr;
-
     status = st->ConOut->ClearScreen(st->ConOut);
     ERR(status);
 
@@ -311,7 +299,11 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     /*Elf64_section_table_entry *section_table_entries = 
             (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
+    boot_table.kernel_start_pointer = 0;
+
     uint64_t highest_page_mapped = 0;
+    // @TODO: Tell the kernel all the information about where it is
+    // rather than just the first mapped address
     for (uint64_t i = 0; i < elf_header->prog_header_entry_num; i++) {
         uint64_t segment_size;
         if (i == elf_header->prog_header_entry_num - 1) {
@@ -332,6 +324,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
             highest_page_mapped = segment_base_addr + (pages << 12);
         }
         status = map_pages(segment_phys_addr, segment_base_addr, pages);
+        if (boot_table.kernel_start_pointer == 0) {
+            boot_table.kernel_start_pointer = segment_base_addr;
+        }
 
         if(EFI_ERROR(status)) {
             terminal_init(&boot_table);

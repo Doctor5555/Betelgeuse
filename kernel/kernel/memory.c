@@ -29,13 +29,17 @@ struct virtual_alloc_entry {
 };
 
 struct virtual_alloc_entry *virtual_address_map;
+uint64_t virtual_address_map_length;
+uint64_t *virtual_address_map_free_bitmap;
 
 /*
- * Structure represents 
+ * Structure represents the address space of a process
  */
 struct address_space {
     uint64_t page_map_pointer;
     struct virtual_alloc_entry *virtual_map_pointer;
+    uint64_t virtual_address_map_length;
+    uint64_t *virtual_address_map_free_bitmap;
 };
 
 /*
@@ -174,14 +178,23 @@ int8_t memory_init(struct boot_table *boot_table) {
         }
         }
     }
-
-/*
+    page_mapper_init(boot_table->mapping_base, boot_table->pml4_pointer);
+    
     int8_t result = page_physical_alloc(&virtual_address_map);
     if (result == -1) {
         return -1;
     }
-    int8_t result = page_map(xxx, virtual_address_map);
-    */
+    result = page_map(boot_table->kernel_start_pointer + (boot_table->kernel_page_count << 12), virtual_address_map);
+    uint64_t i = 0;
+    while (result == 1) {
+        result = page_map(boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12), virtual_address_map);
+        i++;
+    }
+    if (result == -1) {
+        return -1;
+    }
+    virtual_address_map = boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12);
+    printf("virtual_address_map:%#018llx\n\r", virtual_address_map);
     return 0;
 }
 

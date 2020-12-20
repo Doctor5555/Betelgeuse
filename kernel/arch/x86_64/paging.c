@@ -1,14 +1,12 @@
 #include <kernel/memory.h>
 
-static uint64_t *current_pml4 = 0xFFFFFFFFFFFFF000;
+static uint64_t *current_pml4;
+static uint64_t offset;
 
-static physical_addr next_available_mapping_page;
-static uint64_t available_mapping_page_count;
-
-uint64_t get_next_available_mapping_page() {
-    next_available_mapping_page += 0x1000;
-    available_mapping_page_count--;
-    return next_available_mapping_page - 0x1000;
+int8_t page_mapper_init(uint64_t memory_offset, uint64_t *pml4) {
+    current_pml4 = pml4;
+    offset = memory_offset;
+    return 0;
 }
 
 int8_t page_map_in_table(void *pml4, virtual_addr va_addr, physical_addr phys_addr) {
@@ -25,7 +23,7 @@ int8_t page_map(virtual_addr va_addr, physical_addr phys_addr) {
     uint64_t pd_index   = VA_GET_PD_INDEX(va_addr);
     uint64_t pt_index   = VA_GET_PT_INDEX(va_addr);
 
-    uint64_t *pml4_pointer = (uint64_t*)current_pml4;
+    uint64_t *pml4_pointer = (uint64_t)current_pml4 + offset;
     if (!(pml4_pointer[pml4_index] & PRESENT_FLAG)) {
         // @TODO: Allocate a page to do this.
         uint64_t *next_page;
@@ -39,7 +37,7 @@ int8_t page_map(virtual_addr va_addr, physical_addr phys_addr) {
         pml4_pointer[pml4_index] |= (uint64_t)next_page;
     }
 
-    uint64_t *pdp_pointer = pml4_pointer[pml4_index] & ADDR_MASK;
+    uint64_t *pdp_pointer = (uint64_t)(pml4_pointer[pml4_index] & ADDR_MASK) + offset;
     if (!(pdp_pointer[pdp_index] & PRESENT_FLAG)) {
         // @TODO: Allocate a page to do this.
         uint64_t *next_page;
@@ -53,7 +51,7 @@ int8_t page_map(virtual_addr va_addr, physical_addr phys_addr) {
         pdp_pointer[pdp_index] |= (uint64_t)next_page;
     }
 
-    uint64_t *pd_pointer = pdp_pointer[pdp_index] & ADDR_MASK;
+    uint64_t *pd_pointer = (uint64_t)(pdp_pointer[pdp_index] & ADDR_MASK) + offset;
     if (!(pd_pointer[pd_index] & PRESENT_FLAG)) {
         // @TODO: Allocate a page to do this.
         uint64_t *next_page;
@@ -67,7 +65,7 @@ int8_t page_map(virtual_addr va_addr, physical_addr phys_addr) {
         pd_pointer[pd_index] |= (uint64_t)next_page;
     }
 
-    uint64_t *pt_pointer = pd_pointer[pd_index] & ADDR_MASK;
+    uint64_t *pt_pointer = (uint64_t)(pd_pointer[pd_index] & ADDR_MASK) + offset;
     if (!(pt_pointer[pt_index] & PRESENT_FLAG)) {
         pt_pointer[pt_index] = PRESENT_FLAG | WRITABLE_FLAG | USER_ACCESS_FLAG;
         pt_pointer[pt_index] |= phys_addr & ADDR_MASK;
