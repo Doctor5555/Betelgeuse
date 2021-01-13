@@ -300,6 +300,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
             (Elf64_section_table_entry*)((uint64_t)elf_header + elf_header->section_table_offset);*/
 
     boot_table.kernel_start_pointer = 0;
+    boot_table.kernel_page_count = 0;
 
     uint64_t highest_page_mapped = 0;
     // @TODO: Tell the kernel all the information about where it is
@@ -326,6 +327,9 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
         status = map_pages(segment_phys_addr, segment_base_addr, pages);
         if (boot_table.kernel_start_pointer == 0) {
             boot_table.kernel_start_pointer = segment_base_addr;
+        }
+        if (boot_table.kernel_page_count == 0) {
+            boot_table.kernel_page_count = pages;
         }
 
         if(EFI_ERROR(status)) {

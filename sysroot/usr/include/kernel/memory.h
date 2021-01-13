@@ -89,8 +89,9 @@ int64_t page_map_multiple(uint64_t count, virtual_addr virtual_address, physical
  * Returns: error code (-1 -> failed, 0 -> success, 1 -> not mapped)
  * Takes:
  *  - virtual_address: address to remove from the mapping table
+ *  - physical_address: return the physical address that is being unmapped
  */
-int8_t page_unmap(virtual_addr virtual_address);
+int8_t page_unmap(virtual_addr virtual_address, physical_addr *physical_address);
 
 // @TODO Implement page_map_create properly
 /*
@@ -142,8 +143,8 @@ int8_t page_physical_alloc(pageframe_t *frame);
  * Takes:
  *  - frame: pointer to page_frame variable
  *           on the client side. Set in the
- *           function to the allocated pages.
- *           Pages are guaranteed to be consecutive
+ *           function to the first allocated page.
+ *           Pages are guaranteed to be consecutive.
  */
 int8_t page_physical_alloc_multiple(pageframe_t *frame, uint64_t count);
 
@@ -154,7 +155,12 @@ int8_t page_physical_alloc_multiple(pageframe_t *frame, uint64_t count);
  */
 void page_physical_free(pageframe_t frame);
 
+//@TODO: Better method for this allocation function?
 /*
+ * Allocate an arbitrary virtual page. It will
+ * not be mapped or physically allocated.
+ * Current method might not be the best for allocation
+ * Currently allocates the first available page after the lowest allocated range.
  * Returns: error code (-1 -> failed, 0 -> success)
  * Takes:
  *  - frame: pointer to page_frame variable
@@ -164,11 +170,320 @@ void page_physical_free(pageframe_t frame);
 int8_t page_virtual_alloc(pageframe_t *frame);
 
 /*
- * Returns: none
+ * Allocate a specific virtual page. It will
+ * not be mapped or physically allocated.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated)
+ * Takes:
+ *  - frame: address to allocate
+ */
+int8_t page_virtual_alloc_at(pageframe_t frame);
+
+/*
+ * Allocate a virtual page at the next available
+ * location after a base location.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: base address to start from
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_after(pageframe_t base, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the provided base.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the base. If there is an
+ * allocation in the way, then it moves to jump
+ * beyond that allocation and repeats until
+ * a valid location is found.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual 
+ * pages. They will not be mapped or 
+ * physically allocated.
+ * Currently allocates the first available
+ * page after the lowest allocated range.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> a page is already allocated)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_virtual_alloc_multiple(pageframe_t *frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual 
+ * pages. They will not be mapped or 
+ * physically allocated. Propagate forward
+ * until adequate space is located.
+ * Currently allocates the first available
+ * page range of sufficient size after the
+ * lowest allocated range.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_virtual_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual
+ * pages at a specific address.
+ * They will not be mapped or physically
+ * allocated.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated)
+ * Takes:
+ *  - frame: address to allocate at
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_virtual_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual pages at
+ * the next available location after a base location.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated (insufficent room at the first available location))
+ * Takes:
+ *  - base: base address to start from
+ *  - alloc_count: number of pages to allocate
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_multiple_after(pageframe_t base, uint64_t alloc_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual pages at
+ * the next available location with sufficient space
+ * after the base location.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: base address to start from
+ *  - alloc_count: number of pages to allocate
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual pages
+ * with a buffer between the new allocation and 
+ * the provided base.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped or insufficient area available)
+ * Takes:
+ *  - base: address to start search from
+ *  - alloc_count: number of pages to allocate
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to first
+ *           allocated page
+ */
+int8_t page_virtual_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the base. If there is an
+ * allocation in the way, then it moves to jump
+ * beyond that allocation and repeats until
+ * a valid location is found.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_virtual_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Free a virtual page in the map. It will
+ * not be unmapped or physically deallocated.
+ * Returns: error code (-1 -> not allocated, 0 -> success)
  * Takes:
  *  - frame: page frame to free
  */
-void page_virtual_free(pageframe_t frame);
+int8_t page_virtual_free(pageframe_t frame);
+
+/*
+ * Free a series of contiguous virtual pages
+ * They will not be unmapped or physically
+ * deallocated.
+ * Returns: error code (-1 -> not allocated (all allocated pages will be deallocated), 0 -> success)
+ * Takes:
+ *  - frame: page frame to free
+ *  - count: number of pages to free
+ */
+int8_t page_virtual_free_multiple(pageframe_t frame, uint64_t count);
+
+/*
+ * Allocate a virtual page and map it to a
+ * newly allocated physical page
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
+ */
+int8_t page_alloc(pageframe_t *frame);
+/*
+ * Allocate a specific virtual page and map it to a
+ * newly allocated physical page.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated)
+ * Takes:
+ *  - frame: address to allocate
+ */
+int8_t page_alloc_at(pageframe_t frame);
+
+/*
+ * Allocate a virtual page at the next available
+ * location after a base location and map it to a
+ * newly allocated physical page.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: base address to start from
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_after(pageframe_t base, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the provided base and map
+ * it to a newly allocated physical page.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the base and map it to a
+ * physical page. If there is an allocation in the 
+ * way, then it moves to jump beyond that
+ * allocation and repeats until a valid location 
+ * is found.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual 
+ * pages and map to physical pages.
+ * @TODO: current method might not be the best for allocation
+ * Currently allocates the first available page after the lowest allocated range.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> a page is already allocated)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_alloc_multiple(pageframe_t *frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual
+ * pages at a specific address and map to
+ * physical pages.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated)
+ * Takes:
+ *  - frame: address to allocate at
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual pages at
+ * the next available location after a base location
+ * and map to physical pages.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> already allocated (insufficent room at the first available location))
+ * Takes:
+ *  - base: base address to start from
+ *  - alloc_count: number of pages to allocate
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_multiple_after(pageframe_t base, uint64_t alloc_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual pages at
+ * the next available location with sufficient space
+ * after the base location and map to physical pages.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: base address to start from
+ *  - alloc_count: number of pages to allocate
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_count, pageframe_t *frame);
+
+/*
+ * Allocate multiple consecutive virtual pages
+ * with a buffer between the new allocation and 
+ * the provided base and map to physical pages.
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped or insufficient area available)
+ * Takes:
+ *  - base: address to start search from
+ *  - alloc_count: number of pages to allocate
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to first
+ *           allocated page
+ */
+int8_t page_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Allocate a virtual page with a buffer between
+ * the new allocation and the base and map to 
+ * physical pages. If there is an allocation in
+ * the way, then it moves to jump beyond that 
+ * allocation and repeats until a valid location
+ * is found.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - base: address to start search from
+ *  - jump_count: buffer beyond allocation to leave
+ *  - frame: client-side address set to allocated
+ *           page
+ */
+int8_t page_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame);
+
+/*
+ * Free a virtual page in the map. It will
+ * be unmapped and deallocated in the physical
+ * page map.
+ * Returns: error code (-1 -> not allocated, 0 -> success)
+ * Takes:
+ *  - frame: page frame to free
+ */
+void page_free(pageframe_t frame);
 
 /*
  * Returns: a pointer to a contiguous region of memory of a specified size

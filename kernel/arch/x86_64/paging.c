@@ -6,6 +6,7 @@ static uint64_t offset;
 int8_t page_mapper_init(uint64_t memory_offset, uint64_t *pml4) {
     current_pml4 = pml4;
     offset = memory_offset;
+    printf("Offset: %#018llx\n\r", offset);
     return 0;
 }
 
@@ -82,6 +83,24 @@ int64_t page_map_multiple(uint64_t count, virtual_addr va_addr, physical_addr *p
         }
     }
     return 0;
+}
+
+int8_t page_unmap(virtual_addr virtual_address, physical_addr *physical_address) {
+    // @TODO: Recycle a page if it is completely free.
+    if (offset <= virtual_address && virtual_address <= 0x0000FF8000000000) {
+        return -1; // Attempting to unmap a page in the physical map range. This
+                   // is a reserved area, and is not allowed.
+    }
+
+    uint64_t pml4_index = VA_GET_PML4_INDEX(virtual_address);
+    uint64_t pdp_index  = VA_GET_PDP_INDEX(virtual_address);
+    uint64_t pd_index   = VA_GET_PD_INDEX(virtual_address);
+    uint64_t pt_index   = VA_GET_PT_INDEX(virtual_address);
+
+    uint64_t *l3 = (current_pml4[pml4_index] & ADDR_MASK) + offset;
+    uint64_t *l2 = (l3[pdp_index] & ADDR_MASK) + offset;
+    uint64_t *l1 = (l2[pd_index] & ADDR_MASK) + offset;
+    l1[pt_index] &= ~PRESENT_FLAG;
 }
 
 int8_t page_map_set(void *pml4_pointer) {
