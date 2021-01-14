@@ -75,7 +75,7 @@ uint64_t kmain() {
     uint64_t descriptor_size = boot_table.mem_desc_size;
     uint64_t descriptor_count = boot_table.mem_desc_count;
 
-    uint8_t result = memory_init(&boot_table);
+    uint8_t result = page_allocator_init(&boot_table);
     printf("Memory init result: %d\n\r", result);
     goto kend;
 

@@ -57,7 +57,7 @@ uint8_t page_get_status(uint64_t pointer) {
 #define DESCRIPTOR(map, index) ((efi_memory_descriptor*)((uint64_t)(map) + (index) * dsize))
 
 /* @TODO: Rename this function to something better */
-int8_t memory_init(struct boot_table *boot_table) {
+int8_t page_allocator_init(struct boot_table *boot_table) {
     efi_memory_descriptor *mmap = boot_table->mem_table_pointer;
     uint64_t dsize = boot_table->mem_desc_size;
     uint64_t dcount = boot_table->mem_desc_count;

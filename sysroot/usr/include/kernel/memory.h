@@ -117,7 +117,7 @@ int8_t page_map_set(void *pml4_pointer);
  *  - boot_table: the boot table passed by 
  *                the loader
  */
-int8_t memory_init(struct boot_table *boot_table);
+int8_t page_allocator_init(struct boot_table *boot_table);
 
 /*
  * Returns: 0 for success, -1 for failure
