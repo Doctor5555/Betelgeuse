@@ -202,11 +202,12 @@ int8_t page_virtual_alloc_after(pageframe_t base, pageframe_t *frame);
 int8_t page_virtual_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
 
 /*
- * Allocate a virtual page with a buffer between
- * the new allocation and the base. If there is an
+ * Allocate a virtual page with a minimum buffer 
+ * between the new allocation and the previous one,
+ * starting at the passed base. If there is an
  * allocation in the way, then it moves to jump
- * beyond that allocation and repeats until
- * a valid location is found.
+ * beyond that allocation and repeats until a valid
+ * location is found.
  * Returns: error code (-1 -> failed, 0 -> success)
  * Takes:
  *  - base: address to start search from
