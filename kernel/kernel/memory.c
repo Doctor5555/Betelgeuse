@@ -514,7 +514,7 @@ int8_t page_virtual_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_co
 
 int8_t page_virtual_free(pageframe_t frame) {
     struct virtual_alloc_entry **tripref = &virtual_address_map_first;
-    while ((*tripref)->next->base_pointer < frame) {
+    while ((*tripref)->next && (*tripref)->next->base_pointer < frame) {
         tripref = &(*tripref)->next;
     }
     if (frame >= (*tripref)->base_pointer + (*tripref)->length) {
