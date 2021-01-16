@@ -1,4 +1,7 @@
 #include <kernel/memory.h>
+
+#include <kernel/panic.h>
+
 #include <stdint.h>
 #include <stdio.h>
 
@@ -339,19 +342,6 @@ void page_physical_free(pageframe_t frame) {
     } \
 } while (0)
 
-/*
- * Join the current entry with the next entry if required
- *//*
-#define CONDITIONALLY_JOIN_ENTRIES(current_entry) do { \
-    if (current_entry->next != 0 && current_entry->base_pointer + current_entry->length \
-            == current_entry->next->base_pointer) { \
-        uint64_t next_bitmap_location = ((uint64_t)current_entry->next - (uint64_t)virtual_address_map) >> 3; \
-        current_entry->length += current_entry->next->length; \
-        current_entry->next = current_entry->next->next; \
-        virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f))); \
-    } \
-} while (0);*/
-
 int8_t page_virtual_alloc(pageframe_t *frame) {
     // @TODO: Figure out how to find a good spot for a new allocation in
     //        a user process that won't be the highest block in memory.
@@ -482,6 +472,9 @@ int8_t page_virtual_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pagef
 }
 
 int8_t page_virtual_alloc_multiple(pageframe_t *frame, uint64_t alloc_count) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     uint64_t top = virtual_address_map_first->base_pointer + virtual_address_map_first->length + (alloc_count << 12);
     if (virtual_address_map_first->next && top > virtual_address_map_first->next->base_pointer) {
         return 1;
@@ -497,6 +490,9 @@ int8_t page_virtual_alloc_multiple(pageframe_t *frame, uint64_t alloc_count) {
 }
 
 int8_t page_virtual_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     struct virtual_alloc_entry **tripref = &virtual_address_map_first;
     uint64_t top = (*tripref)->base_pointer + (*tripref)->length + (alloc_count << 12);
     while ((*tripref)->next &&
@@ -514,6 +510,9 @@ int8_t page_virtual_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count) 
 }
 
 int8_t page_virtual_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     struct virtual_alloc_entry **tripref = &virtual_address_map_first;
     FIND_ENTRY_WITH_TRIPREF(tripref, frame);
     if ((*tripref)->base_pointer + (*tripref)->length > frame ||
@@ -540,6 +539,9 @@ int8_t page_virtual_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count) {
 }
 
 int8_t page_virtual_alloc_multiple_after(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     struct virtual_alloc_entry **tripref = &virtual_address_map_first;
     FIND_ENTRY_WITH_TRIPREF(tripref, base);
     if ((*tripref)->base_pointer + (*tripref)->length >= base) {
@@ -568,6 +570,9 @@ int8_t page_virtual_alloc_multiple_after(pageframe_t base, uint64_t alloc_count,
 }
 
 int8_t page_virtual_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     struct virtual_alloc_entry **tripref = &virtual_address_map_first;
     FIND_ENTRY_WITH_TRIPREF(tripref, base);
     if ((*tripref)->base_pointer + (*tripref)->length >= base) {
@@ -597,6 +602,9 @@ int8_t page_virtual_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_cou
 }
 
 int8_t page_virtual_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     if (jump_count == 0) {
         return page_virtual_alloc_multiple_after(base, alloc_count, frame);
     }
@@ -630,6 +638,9 @@ int8_t page_virtual_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count
 }
 
 int8_t page_virtual_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    if (alloc_count == 0) {
+        return -1;
+    }
     if (jump_count == 0) {
         return page_virtual_alloc_multiple_after(base, alloc_count, frame);
     }
@@ -671,7 +682,9 @@ int8_t page_virtual_free(pageframe_t frame) {
     }
     else {
         uint64_t old_length = (*tripref)->length;
+        (*tripref)->length = frame - (*tripref)->base_pointer;
         INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(frame + (1 << 12), (*tripref)->next, old_length - (*tripref)->length - (1 << 12));
+        return -1;
     }/*for (uint16_t bitmap_index = 0; bitmap_index < virtual_address_map_free_bitmap_length; bitmap_index++) {
         if (virtual_address_map_free_bitmap[bitmap_index] < INT64_MAX) {
             for (int8_t offset = 63; offset >= 0; offset--) {
@@ -692,29 +705,386 @@ int8_t page_virtual_free(pageframe_t frame) {
     }*/
     
     //@TODO: Extend number of available entries
-    return -1;
+    return 0;
 }
 
-/*
- * Allocate a virtual page and map it to a physical
- * page
- * Returns: error code (-1 -> failed, 0 -> success)
- * Takes:
- *  - frame: pointer to page_frame variable
- *           on the client side. Set in the
- *           function to the allocated page
- */
-int8_t page_alloc(pageframe_t *frame);
+int8_t page_virtual_free_multiple(pageframe_t frame, uint64_t count) {
+    if (count == 1) {
+        page_virtual_free(frame);
+    } else if (count == 0) {
+        return -1;
+    }
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    while ((*tripref)->next && (*tripref)->next->base_pointer < frame) {
+        tripref = &(*tripref)->next;
+    }
+    if (frame + (count << 12) >= (*tripref)->base_pointer + (*tripref)->length) {
+        // This page is not allocated in the map!
+        return -1;
+    }
+    if ((*tripref)->length == 1) {
+        uint64_t free_bitmap_location = ((uint64_t)(*tripref) - (uint64_t)virtual_address_map) >> 3;
+        *tripref = (*tripref)->next;
+        virtual_address_map_free_bitmap[free_bitmap_location >> 6] &= ~(1 << (63 - (free_bitmap_location & 0x3f)));
+    }
+    else {
+        uint64_t old_length = (*tripref)->length;
+        (*tripref)->length = frame - (*tripref)->base_pointer;
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(frame + (count << 12), (*tripref)->next, old_length - (*tripref)->length - (count << 12));
+    }
+}
 
-/*
- * Free a virtual page in the map. It will
- * be unmapped and deallocated in the physical
- * page map.
- * Returns: none
- * Takes:
- *  - frame: page frame to free
- */
-void page_free(pageframe_t frame);
+int8_t page_alloc(pageframe_t *frame) {
+    pageframe_t physical_page;
+    int8_t result = page_physical_alloc(&physical_page);
+    if (result == -1) {
+        return -1;
+    }
+    result = page_virtual_alloc(frame);
+    if (result == -1) {
+        page_physical_free(physical_page);
+        return -1;
+    }
+    result = page_map(*frame, physical_page);
+    if (result == 1) {
+        printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", *frame);
+        kernel_panic(); // Why is something mapped but not registered in the memory map?
+    } else if (result == -1) {
+        page_physical_free(physical_page);
+        page_virtual_free(*frame);
+        return -1;
+    }
+    return 0;
+}
+
+int8_t page_alloc_at(pageframe_t frame) {
+    pageframe_t physical_page;
+    int8_t result = page_physical_alloc(&physical_page);
+    if (result == -1) {
+        return -1;
+    }
+    result = page_virtual_alloc_at(frame);
+    if (result != 0) {
+        page_physical_free(physical_page);
+        return result;
+    }
+    result = page_map(frame, physical_page);
+    if (result == 1) {
+        printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+        kernel_panic(); // Why is something mapped but not registered in the memory map?
+    } else if (result == -1) {
+        page_physical_free(physical_page);
+        page_virtual_free(frame);
+        return -1;
+    }
+    return 0;
+}
+
+int8_t page_alloc_after(pageframe_t base, pageframe_t *frame) {
+    pageframe_t physical_page;
+    int8_t result = page_physical_alloc(&physical_page);
+    if (result == -1) {
+        return -1;
+    }
+    result = page_virtual_alloc_after(base, frame);
+    if (result == -1) {
+        page_physical_free(physical_page);
+        return -1;
+    }
+    result = page_map(*frame, physical_page);
+    if (result == 1) {
+        printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", *frame);
+        kernel_panic(); // Why is something mapped but not registered in the memory map?
+    } else if (result == -1) {
+        page_physical_free(physical_page);
+        page_virtual_free(*frame);
+        return -1;
+    }
+    return 0;
+}
+
+int8_t page_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *frame) {
+    pageframe_t physical_page;
+    int8_t result = page_physical_alloc(&physical_page);
+    if (result == -1) {
+        return -1;
+    }
+    result = page_virtual_alloc_beyond(base, jump_count, frame);
+    if (result != 0) {
+        page_physical_free(physical_page);
+        return result;
+    }
+    result = page_map(frame, physical_page);
+    if (result == 1) {
+        printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+        kernel_panic(); // Why is something mapped but not registered in the memory map?
+    } else if (result == -1) {
+        page_physical_free(physical_page);
+        page_virtual_free(frame);
+        return -1;
+    }
+    return 0;
+}
+
+int8_t page_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pageframe_t *frame) {
+    pageframe_t physical_page;
+    int8_t result = page_physical_alloc(&physical_page);
+    if (result == -1) {
+        return -1;
+    }
+    result = page_virtual_alloc_beyond_ex(base, jump_count, frame);
+    if (result == -1) {
+        page_physical_free(physical_page);
+        return -1;
+    }
+    result = page_map(*frame, physical_page);
+    if (result == 1) {
+        printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", *frame);
+        kernel_panic(); // Why is something mapped but not registered in the memory map?
+    } else if (result == -1) {
+        page_physical_free(physical_page);
+        page_virtual_free(*frame);
+        return -1;
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple(pageframe_t *frame, uint64_t alloc_count) {
+    int8_t result = page_virtual_alloc_multiple(frame, alloc_count);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(*frame, i);
+            page_virtual_free_multiple(*frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(*frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(*frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(*frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", *frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count) {
+    int8_t result = page_virtual_alloc_multiple_ex(frame, alloc_count);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(*frame, i);
+            page_virtual_free_multiple(*frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(*frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(*frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(*frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Virtual address %#018llx is mapped but not registered in the map!", *frame + (i << 12));
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count) {
+    int8_t result = page_virtual_alloc_multiple_at(frame, alloc_count);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_after(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
+    int8_t result = page_virtual_alloc_multiple_after(base, alloc_count, frame);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
+    int8_t result = page_virtual_alloc_multiple_after_ex(base, alloc_count, frame);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    int8_t result = page_virtual_alloc_multiple_beyond(base, alloc_count, jump_count, frame);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+int8_t page_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    int8_t result = page_virtual_alloc_multiple_beyond_ex(base, alloc_count, jump_count, frame);
+    if (result != 0) {
+        return result;
+    }
+    uint64_t i = 0;
+    for (i; i < alloc_count; i++) {
+        pageframe_t physical_page;
+        result = page_physical_alloc(&physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        }
+        result = page_map(frame + (i << 12), physical_page);
+        if (result == -1) {
+            if (i > 0)
+                page_free_multiple(frame, i);
+            page_physical_free(physical_page);
+            page_virtual_free_multiple(frame + (i << 12), alloc_count - i);
+            return -1;
+        } else if (result == 1) {
+            printf("PANIC: Attempting to allocate virtual address %#018llx, which is mapped but not registered in the map!", frame);
+            kernel_panic(); // Why is something mapped but not registered in the memory map?
+        }
+    }
+    return 0;
+}
+
+void page_free(pageframe_t frame) {
+    pageframe_t physical_page;
+    int8_t result = page_unmap(frame, &physical_page);
+    if (result == -1) {
+        printf("WARNING: Attempted to free address %#018llx inside the physical mirror range.", frame);
+        return;
+    } else if (result == 1) {
+        printf("WARNING: Deallocating virtual address %#018llx, which was mapped but not registered in the map!", frame);
+    }
+    page_virtual_free(frame);
+}
+
+void page_free_multiple(pageframe_t frame, uint64_t count) {
+    for (uint64_t i = 0; i < count; i++) {
+        pageframe_t physical_page;
+        int8_t result = page_unmap(frame + (i << 12), &physical_page);
+        if (result == -1) {
+            printf("WARNING: Attempted to free address %#018llx inside the physical mirror range.", frame);
+        } else if (result == 1) {
+            printf("WARNING: Deallocating virtual address %#018llx, which was mapped but not registered in the map!", frame);
+            page_virtual_free(frame);
+        } else {
+            page_virtual_free(frame);
+        }
+    }
+}
 
 /*
  * Returns: a pointer to a contiguous region of memory of a specified size

@@ -343,7 +343,7 @@ int8_t page_virtual_free(pageframe_t frame);
  * Free a series of contiguous virtual pages
  * They will not be unmapped or physically
  * deallocated.
- * Returns: error code (-1 -> not allocated (all allocated pages will be deallocated), 0 -> success)
+ * Returns: error code (-1 -> not allocated (all allocated pages in the range will remain allocated), 0 -> success)
  * Takes:
  *  - frame: page frame to free
  *  - count: number of pages to free
@@ -360,6 +360,7 @@ int8_t page_virtual_free_multiple(pageframe_t frame, uint64_t count);
  *           function to the allocated page
  */
 int8_t page_alloc(pageframe_t *frame);
+
 /*
  * Allocate a specific virtual page and map it to a
  * newly allocated physical page.
@@ -410,10 +411,10 @@ int8_t page_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *fra
  */
 int8_t page_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
 
+// @TODO: current method might not be the best for allocation
 /*
  * Allocate multiple consecutive virtual 
  * pages and map to physical pages.
- * @TODO: current method might not be the best for allocation
  * Currently allocates the first available page after the lowest allocated range.
  * Returns: error code (-1 -> failed, 0 -> success, 1 -> a page is already allocated)
  * Takes:
@@ -423,6 +424,23 @@ int8_t page_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pageframe_t *
  *  - alloc_count: number of pages to allocate
  */
 int8_t page_alloc_multiple(pageframe_t *frame, uint64_t alloc_count);
+
+/*
+ * Allocate multiple consecutive virtual 
+ * pages and mapped and physically allocate.
+ * Propagate forward until adequate space is
+ * located.
+ * Currently allocates the first available
+ * page range of sufficient size after the
+ * lowest allocated range.
+ * Returns: error code (-1 -> failed, 0 -> success)
+ * Takes:
+ *  - frame: pointer to page_frame variable
+ *           on the client side. Set in the
+ *           function to the allocated page
+ *  - alloc_count: number of pages to allocate
+ */
+int8_t page_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count);
 
 /*
  * Allocate multiple consecutive virtual
@@ -500,6 +518,20 @@ int8_t page_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uin
  *  - frame: page frame to free
  */
 void page_free(pageframe_t frame);
+
+/*
+ * Free a series of consecutive virtual pages in
+ * the map. They will be unmapped and deallocated
+ * in the physical page map.
+ * If any page is not allocated, all others will
+ * be deallocated anyway, but an error code will
+ * be returned.
+ * Returns: error code (-1 -> not allocated, 0 -> success)
+ * Takes:
+ *  - frame: page frame to free
+ *  - count: number of pages to free
+ */
+void page_free_multiple(pageframe_t frame, uint64_t count);
 
 /*
  * Returns: a pointer to a contiguous region of memory of a specified size
