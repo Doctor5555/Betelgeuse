@@ -191,7 +191,15 @@ int8_t page_virtual_alloc_after(pageframe_t base, pageframe_t *frame);
 
 /*
  * Allocate a virtual page with a buffer between
- * the new allocation and the provided base.
+ * the new allocation and the provided base. If
+ * the base is in an allocation, the buffer will
+ * be present between the end of that allocation
+ * and the new allocation. If the base is not in
+ * an allocation, then the new allocation will
+ * simply have a buffer above the base. If another
+ * allocation is inside the buffer, or at any point
+ * inside the allocation range, the allocation will
+ * fail with error code 1.
  * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped)
  * Takes:
  *  - base: address to start search from
@@ -202,11 +210,12 @@ int8_t page_virtual_alloc_after(pageframe_t base, pageframe_t *frame);
 int8_t page_virtual_alloc_beyond(pageframe_t base, uint64_t jump_count, pageframe_t *frame);
 
 /*
- * Allocate a virtual page with a buffer between
- * the new allocation and the base. If there is an
+ * Allocate a virtual page with a minimum buffer 
+ * between the new allocation and the previous one,
+ * starting at the passed base. If there is an
  * allocation in the way, then it moves to jump
- * beyond that allocation and repeats until
- * a valid location is found.
+ * beyond that allocation and repeats until a valid
+ * location is found.
  * Returns: error code (-1 -> failed, 0 -> success)
  * Takes:
  *  - base: address to start search from
@@ -288,7 +297,14 @@ int8_t page_virtual_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_cou
 /*
  * Allocate multiple consecutive virtual pages
  * with a buffer between the new allocation and 
- * the provided base.
+ * the provided base. If the base is in an allocation,
+ * the buffer will be present between the end of that
+ * allocation and the new allocation. If the base is
+ * not in an allocation, then the new allocation will
+ * simply have a buffer above the base. If another
+ * allocation is inside the buffer, or at any point
+ * inside the allocation range, the allocation will
+ * fail with error code 1.
  * Returns: error code (-1 -> failed, 0 -> success, 1 -> target location already mapped or insufficient area available)
  * Takes:
  *  - base: address to start search from

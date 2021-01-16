@@ -25,6 +25,7 @@ void constructor_test() {
 
 __attribute__ ((noinline))
 int ssp_test(const char *test) {
+    // The bug here is intentional. It is not a bug.
     int len = strlen(test);
     char dest[3];
     for (int i = 0; i < len; i++) {
