@@ -482,34 +482,177 @@ int8_t page_virtual_alloc_beyond_ex(pageframe_t base, uint64_t jump_count, pagef
 }
 
 int8_t page_virtual_alloc_multiple(pageframe_t *frame, uint64_t alloc_count) {
-    if (virtual_address_map_first->base_pointer + virtual_address_map_first->length + (alloc_count << 12) > virtual_address_map_first->next->base_pointer) {
+    uint64_t top = virtual_address_map_first->base_pointer + virtual_address_map_first->length + (alloc_count << 12);
+    if (virtual_address_map_first->next && top > virtual_address_map_first->next->base_pointer) {
         return 1;
     }
-    
+    virtual_address_map_first->length += alloc_count << 12;
+    if (virtual_address_map_first->next && top == virtual_address_map_first->next->base_pointer) {
+        uint64_t next_bitmap_location = ((uint64_t)virtual_address_map_first->next - (uint64_t)virtual_address_map) >> 3;
+        virtual_address_map_first->length += virtual_address_map_first->next->length;
+        virtual_address_map_first->next = virtual_address_map_first->next->next;
+        virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_ex(pageframe_t *frame, uint64_t alloc_count) {
-    
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    uint64_t top = (*tripref)->base_pointer + (*tripref)->length + (alloc_count << 12);
+    while ((*tripref)->next &&
+           (*tripref)->base_pointer + (*tripref)->length + (alloc_count << 12) > (*tripref)->next->base_pointer) {
+        tripref = &(*tripref)->next;
+    }
+    (*tripref)->length += alloc_count << 12;
+    if ((*tripref)->next && top == (*tripref)->next->base_pointer) {
+        uint64_t next_bitmap_location = ((uint64_t)(*tripref)->next - (uint64_t)virtual_address_map) >> 3;
+        (*tripref)->length += (*tripref)->next->length;
+        (*tripref)->next = (*tripref)->next->next;
+        virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_at(pageframe_t frame, uint64_t alloc_count) {
-
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    FIND_ENTRY_WITH_TRIPREF(tripref, frame);
+    if ((*tripref)->base_pointer + (*tripref)->length > frame ||
+        frame + (alloc_count << 12) > (*tripref)->next->base_pointer) {
+        return 1; // Location already allocated
+    }
+    if ((*tripref)->base_pointer + (*tripref)->length == frame) {
+        (*tripref)->length += alloc_count << 12;
+        if ((*tripref)->next && (*tripref)->base_pointer + (*tripref)->length == (*tripref)->next->base_pointer) {
+            // Join the two entries together - they now are touching.
+            uint64_t next_bitmap_location = ((uint64_t)(*tripref)->next - (uint64_t)virtual_address_map) >> 3;
+            (*tripref)->length += (*tripref)->next->length;
+            (*tripref)->next = (*tripref)->next->next;
+            virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+        }
+    } else if ((*tripref)->next && (*tripref)->next->base_pointer == frame + (alloc_count << 12)) {
+        (*tripref)->next->base_pointer -= (alloc_count << 12);
+        (*tripref)->next->length += (alloc_count << 12);
+    } else {
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(frame, (*tripref)->next, alloc_count << 12);
+        return -1;
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_after(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
-
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    FIND_ENTRY_WITH_TRIPREF(tripref, base);
+    if ((*tripref)->base_pointer + (*tripref)->length >= base) {
+        *frame = (*tripref)->base_pointer + (*tripref)->length;
+        if ((*tripref)->next && (*tripref)->next->base_pointer < *frame + (alloc_count << 12)) {
+            return 1;
+        }
+        (*tripref)->length += alloc_count << 12;
+        if ((*tripref)->next && (*tripref)->base_pointer + (*tripref)->length == (*tripref)->next->base_pointer) {
+            // Join the two entries together - they now are touching.
+            uint64_t next_bitmap_location = ((uint64_t)(*tripref)->next - (uint64_t)virtual_address_map) >> 3;
+            (*tripref)->length += (*tripref)->next->length;
+            (*tripref)->next = (*tripref)->next->next;
+            virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+        }
+    } else if ((*tripref)->next && (*tripref)->next->base_pointer == base + (alloc_count << 12)) {
+        *frame = base;
+        (*tripref)->next->base_pointer -= (alloc_count << 12);
+        (*tripref)->next->length += (alloc_count << 12);
+    } else {
+        *frame = base;
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(base, (*tripref)->next, alloc_count << 12);
+        return -1;
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_after_ex(pageframe_t base, uint64_t alloc_count, pageframe_t *frame) {
-
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    FIND_ENTRY_WITH_TRIPREF(tripref, base);
+    if ((*tripref)->base_pointer + (*tripref)->length >= base) {
+        *frame = (*tripref)->base_pointer + (*tripref)->length;
+        while ((*tripref)->next->base_pointer < *frame + (alloc_count << 12)) {
+            tripref = &(*tripref)->next;
+            *frame = (*tripref)->base_pointer + (*tripref)->length;
+        }
+        (*tripref)->length += alloc_count << 12;
+        if ((*tripref)->next && (*tripref)->base_pointer + (*tripref)->length == (*tripref)->next->base_pointer) {
+            // Join the two entries together - they now are touching.
+            uint64_t next_bitmap_location = ((uint64_t)(*tripref)->next - (uint64_t)virtual_address_map) >> 3;
+            (*tripref)->length += (*tripref)->next->length;
+            (*tripref)->next = (*tripref)->next->next;
+            virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+        }
+    } else if ((*tripref)->next && (*tripref)->next->base_pointer == base + (alloc_count << 12)) {
+        *frame = base;
+        (*tripref)->next->base_pointer -= (alloc_count << 12);
+        (*tripref)->next->length += (alloc_count << 12);
+    } else {
+        *frame = base;
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(base, (*tripref)->next, alloc_count << 12);
+        return -1;
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_beyond(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    if (jump_count == 0) {
+        return page_virtual_alloc_multiple_after(base, alloc_count, frame);
+    }
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    FIND_ENTRY_WITH_TRIPREF(tripref, base);
 
+    *frame = (*tripref)->base_pointer + (*tripref)->length + (jump_count << 12);
+    if (*frame < base) {
+        *frame = base;
+    }
+    if ((*tripref)->next && (*tripref)->next->base_pointer <= *frame) {
+        return 1; // Location already allocated
+    } else if ((*tripref)->next && (*tripref)->next->base_pointer == *frame + (alloc_count << 12)) {
+        (*tripref)->next->base_pointer -= (alloc_count << 12);
+        (*tripref)->next->length += (alloc_count << 12);
+    } else if ((*tripref)->next && (*tripref)->next->base_pointer + (*tripref)->next->length == *frame) {
+        tripref = &(*tripref)->next;
+        (*tripref)->length += alloc_count << 12;
+        if ((*tripref)->next && (*tripref)->base_pointer + (*tripref)->length == (*tripref)->next->base_pointer) {
+            // Join the two entries together - they now are touching.
+            uint64_t next_bitmap_location = ((uint64_t)(*tripref)->next - (uint64_t)virtual_address_map) >> 3;
+            (*tripref)->length += (*tripref)->next->length;
+            (*tripref)->next = (*tripref)->next->next;
+            virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
+        }
+    } else {
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(*frame, (*tripref)->next, alloc_count << 12);
+        return -1;
+    }
+    return 0;
 }
 
 int8_t page_virtual_alloc_multiple_beyond_ex(pageframe_t base, uint64_t alloc_count, uint64_t jump_count, pageframe_t *frame) {
+    if (jump_count == 0) {
+        return page_virtual_alloc_multiple_after(base, alloc_count, frame);
+    }
+    struct virtual_alloc_entry **tripref = &virtual_address_map_first;
+    FIND_ENTRY_WITH_TRIPREF(tripref, base);
 
+    *frame = (*tripref)->base_pointer + (*tripref)->length + (jump_count << 12);
+    if (*frame < base) {
+        *frame = base;
+    }
+    while ((*tripref)->next && (*tripref)->next->base_pointer < *frame + (alloc_count << 12) /*&&
+        (*tripref)->next->base_pointer + (*tripref)->next->length > *frame*/) {
+        tripref = &(*tripref)->next;
+        *frame = (*tripref)->base_pointer + (*tripref)->length + (jump_count << 12);
+    }
+    if ((*tripref)->next && (*tripref)->next->base_pointer == *frame + (alloc_count << 12)) {
+        (*tripref)->next->base_pointer -= (alloc_count << 12);
+        (*tripref)->next->length += (alloc_count << 12);
+    } else {
+        INSERT_VIRTUAL_MAP_ENTRY_AND_RETURN(*frame, (*tripref)->next, alloc_count << 12);
+        return -1;
+    }
+    return 0;
 }
 
 int8_t page_virtual_free(pageframe_t frame) {
