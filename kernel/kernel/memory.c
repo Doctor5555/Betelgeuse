@@ -360,7 +360,7 @@ int8_t page_virtual_alloc(pageframe_t *frame) {
         return -1; // Probably impossible, but a good idea to check we didn't overflow anyway.
     }
     virtual_address_map_first->length++;
-    if (virtual_address_map_first->next != 0 && virtual_address_map_first->base_pointer + virtual_address_map_first->length
+    if (virtual_address_map_first->next && virtual_address_map_first->base_pointer + virtual_address_map_first->length
             == virtual_address_map_first->next->base_pointer) {
         // Join the two entries together - they now are touching.
         uint64_t next_bitmap_location = ((uint64_t)virtual_address_map_first->next - (uint64_t)virtual_address_map) >> 3;
@@ -410,6 +410,7 @@ int8_t page_virtual_alloc_after(pageframe_t base, pageframe_t *frame) {
             virtual_address_map_free_bitmap[next_bitmap_location >> 6] &= ~(1 << (63 - (next_bitmap_location & 0x3f)));
         }
     } else if ((*tripref)->next && (*tripref)->next->base_pointer == base + (1 << 12)) {
+        *frame = base;
         (*tripref)->next->base_pointer -= (1 << 12);
         (*tripref)->next->length += (1 << 12);
     } else {
@@ -431,8 +432,8 @@ int8_t page_virtual_alloc_beyond(pageframe_t base, uint64_t jump_count, pagefram
     if (*frame < base) {
         *frame = base;
     }
-    if ((*tripref)->next && (*tripref)->next->base_pointer <= *frame &&
-        (*tripref)->next->base_pointer + (*tripref)->next->length > *frame) {
+    if ((*tripref)->next && (*tripref)->next->base_pointer <= *frame /*&&
+        (*tripref)->next->base_pointer + (*tripref)->next->length > *frame*/) {
         return 1; // Location already allocated
     } else if ((*tripref)->next && (*tripref)->next->base_pointer == *frame + (1 << 12)) {
         (*tripref)->next->base_pointer -= (1 << 12);
