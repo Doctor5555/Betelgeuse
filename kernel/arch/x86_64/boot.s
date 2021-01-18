@@ -3,8 +3,6 @@ global _start
 section .text
 
 _start:
-    mov rdi, rcx
-
     extern early_kmain
     call early_kmain
 

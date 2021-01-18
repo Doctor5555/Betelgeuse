@@ -343,8 +343,7 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     //terminal_writestring("Mapped kernel, jumping in!\n\r");
 
     /* Call the kernel */
-    typedef uint64_t(*kmain_t)(struct boot_table*);
-    kmain_t kmain = elf_header->entry_addr;
+    uint64_t(__attribute__((sysv_abi))*kmain)(struct boot_table*) = elf_header->entry_addr;
     uint64_t kernel_return = kmain(&boot_table);
 
     return EFI_SUCCESS;
