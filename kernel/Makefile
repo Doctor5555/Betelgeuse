@@ -19,7 +19,7 @@ CPPFLAGS := $(CPPFLAGS) -D__is_kernel -Iinclude -I../bootloader/include
 LDFLAGS  := $(LDFLAGS)
 LIBS     := $(LIBS) -nostdlib -L$(DESTDIR)$(PREFIX)/lib -lk -lgcc
 
-ARCHDIR:=arch/x86_64
+ARCHDIR:=arch/$(HOSTARCH)
 
 include $(ARCHDIR)/make.config
 
