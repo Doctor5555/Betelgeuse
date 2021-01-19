@@ -11,18 +11,20 @@
 
 struct boot_table boot_table;
 
-uint64_t early_kmain(struct boot_table *boot_table_pointer) {
+void early_kmain(struct boot_table *boot_table_pointer) {
     boot_table = *boot_table_pointer;
-    terminal_init(&boot_table);
+    int result = terminal_init(&boot_table);
     serial_init();
     terminal_setcolour(0xDCDCDC, 0x000000);
-    terminal_writestring("Hello, World from early kmain!\n\r");
-    return boot_table.graphics_mode.framebuffer_base;
+    
+    if (result == 0) {
+        print_check(0, "Terminal driver initialisation");
+    }
 }
 
 __attribute__ ((constructor))
 void constructor_test() {
-    terminal_writestring("Hello, Constructor World!\n\r");
+    //terminal_writestring("Hello, Constructor World!\n\r");
 }
 
 __attribute__ ((noinline))
@@ -43,10 +45,35 @@ ssp_test("Hello, Worlddsjkfghaskdhjfgasuiytg43iu57yqt34787qahgaeit784hit87f4yo87
 printf("Done ssp test 2 with Hello, World!!\n\r");
 */
 
-uint64_t kmain() {
-    uint8_t result = page_allocator_init(&boot_table);
-    printf("page_allocator_init result: %d\n\r", result);
+void print_check(uint8_t status, const char *msg) {
+    printf("[");
+    terminal_setcolour(status ? 0xCD2222 : 0x22CD22, 0x000000);
+    printf("%s", status ? "ERR" : "OK");
+    terminal_setcolour(0xDCDCDC, 0x000000);
+    printf("] %s\n\r", msg);
+}
+#define CHECK(msg) do { if (result) { print_check(1, (msg)); return 1; } else print_check(0, (msg)); } while (0)
 
-    printf("Exiting!\n\r");
-    return 0xBE2E76E43E;
+uint64_t kmain() {
+    uint8_t result = 0;
+
+    /* Architecture-specific initialisation procedures */
+#if defined(ARCH_AMD64)
+
+    extern int8_t load_gdt();
+    result = load_gdt();
+    CHECK("AMD64: Load GDT");
+
+#elif defined(ARCH_AARCH64)
+
+#endif
+
+    result = page_allocator_init(&boot_table);
+    CHECK("Page allocator initialisation");
+
+    result = install_irq_handlers();
+    CHECK("Install IRQ handlers");
+
+    result = install_isr_handlers();
+    CHECK("Install ISR handlers");
 }

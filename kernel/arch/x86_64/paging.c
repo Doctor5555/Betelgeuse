@@ -6,7 +6,7 @@ static uint64_t offset;
 int8_t page_mapper_init(uint64_t memory_offset, uint64_t *pml4) {
     current_pml4 = pml4;
     offset = memory_offset;
-    printf("Offset: %#018llx\n\r", offset);
+    //printf("Offset: %#018llx\n\r", offset);
     return 0;
 }
 
