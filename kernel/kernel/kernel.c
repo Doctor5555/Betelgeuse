@@ -71,9 +71,6 @@ uint64_t kmain() {
     result = page_allocator_init(&boot_table);
     CHECK("Page allocator initialisation");
 
-    result = install_irq_handlers();
-    CHECK("Install IRQ handlers");
-
-    result = install_isr_handlers();
-    CHECK("Install ISR handlers");
+    result = install_interrupts();
+    CHECK("Install interrupts");
 }

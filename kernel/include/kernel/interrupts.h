@@ -5,6 +5,14 @@
 
 #if defined(ARCH_AMD64)
 
+struct InterruptStackFrame {
+    uint64_t ip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t sp;
+    uint64_t ss;
+};
+
 /*
  * 
  */
@@ -15,7 +23,7 @@ struct idt_entry {
     uint8_t type_attributes;
     uint16_t target_offset_31_16;
     uint32_t target_offset_63_32;
-    uint32_t _reserved_2
+    uint32_t _reserved;
 };
 
 #define PIC_1 0x20
@@ -27,7 +35,6 @@ struct idt_entry {
 
 #endif
 
-int8_t install_irq_handlers();
-int8_t install_isr_handlers();
+int8_t install_interrupts();
 
 #endif /* _INTERRUPTS_H */
