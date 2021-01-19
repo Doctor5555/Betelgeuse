@@ -12,11 +12,9 @@ _start:
     extern kmain
     call kmain
 
-    extern _fini
-    call _fini
-
-_kernel_halt:
+.halt:
     hlt
-    jmp _kernel_halt
+    jmp .halt
 
 .size: equ $ - _start
+

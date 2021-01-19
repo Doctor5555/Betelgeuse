@@ -65,8 +65,8 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
     uint64_t dsize = boot_table->mem_desc_size;
     uint64_t dcount = boot_table->mem_desc_count;
     uint64_t required_pages = 32; // @TODO: Calculate this in case I forget
-    printf("DESCRIPTOR(mmap, dcount - 1)->physical_start: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->physical_start);
-    printf("DESCRIPTOR(mmap, dcount - 1)->number_of_pages: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->number_of_pages);
+    //printf("DESCRIPTOR(mmap, dcount - 1)->physical_start: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->physical_start);
+    //printf("DESCRIPTOR(mmap, dcount - 1)->number_of_pages: %#018llx\n\r", DESCRIPTOR(mmap, dcount - 1)->number_of_pages);
     uint64_t reserved_pages = UINT64_MAX;
     uint64_t reserved_index = 0;
 
@@ -94,7 +94,7 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
                 page_bitmap = d->physical_start;
                 reserved_pages = d->number_of_pages;
                 reserved_index = i;
-                printf("Base: %#018llx, Required: %lld, Reserved: %lld, Index: %lld\n\r", page_bitmap, required_pages, reserved_pages, i);
+                //printf("Base: %#018llx, Required: %lld, Reserved: %lld, Index: %lld\n\r", page_bitmap, required_pages, reserved_pages, i);
             }
         default:
             break;
@@ -105,7 +105,7 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
         return -1;
     }
     DESCRIPTOR(mmap, reserved_index)->type = 0x11;
-    printf("Allocated location: %#018llx\n\r", page_bitmap);
+    //printf("Allocated location: %#018llx\n\r", page_bitmap);
     // Multiply by 512 - number of uint64_t s in a page - to get full array length.
     page_bitmap_length = required_pages << 9;
     for (uint64_t i = 0; i < page_bitmap_length; i++) {
