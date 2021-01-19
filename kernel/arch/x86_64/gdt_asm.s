@@ -11,16 +11,19 @@ set_gdt:
     mov rax, rsi
     mov [gdtr], ax
 
-    ;mov ax, 0x10
-    lgdt [gdtr]
-
-    ;mov ss, ax
-    ret
+    mov rdi, qword gdtr
+    lgdt [rdi]
 
 .reload_segments:
-    ;mov cs, ax
+    mov rax, 0x10
+    mov ss, ax
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
+
+    push 0x8
+    push .reload_cs
+    o64 retf
+.reload_cs:
     ret

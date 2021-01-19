@@ -26,7 +26,7 @@ int8_t install_interrupts() {
     idt[3].target_offset_15_0 = (uint64_t)&breakpoint_handler & 0x0000ffff;
     idt[3].target_offset_31_16 = ((uint64_t)&breakpoint_handler >> 16)& 0x0000ffff;
     idt[3].target_offset_63_32 = ((uint64_t)&breakpoint_handler >> 32)& 0xffffffff;
-    idt[3].target_selector = 0x38;
+    idt[3].target_selector = 0x08;
     idt[3].type_attributes = 0x8e;
     idt[3].interrupt_stack_table = 0;
 

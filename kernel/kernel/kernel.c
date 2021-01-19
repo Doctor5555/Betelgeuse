@@ -60,9 +60,9 @@ uint64_t kmain() {
     /* Architecture-specific initialisation procedures */
 #if defined(ARCH_AMD64)
 
-    //extern int8_t load_gdt();
-    //result = load_gdt();
-    //CHECK("AMD64: Load GDT");
+    extern int8_t load_gdt();
+    result = load_gdt();
+    CHECK("AMD64: Load GDT");
 
 #elif defined(ARCH_AARCH64)
 
