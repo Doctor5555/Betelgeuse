@@ -57,23 +57,9 @@ void print_check(uint8_t status, const char *msg) {
 uint64_t kmain() {
     uint8_t result = 0;
 
-    /* Architecture-specific initialisation procedures */
-#if defined(ARCH_AMD64)
-
-    extern int8_t load_gdt();
-    result = load_gdt();
-    CHECK("AMD64: Load GDT");
-
-#elif defined(ARCH_AARCH64)
-
-#endif
-
     result = page_allocator_init(&boot_table);
     CHECK("Page allocator initialisation");
 
-    result = install_irq_handlers();
-    CHECK("Install IRQ handlers");
-
-    result = install_isr_handlers();
-    CHECK("Install ISR handlers");
+    result = install_interrupts();
+    CHECK("Install interrupts");
 }

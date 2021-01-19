@@ -21,6 +21,12 @@ LIBS     := $(LIBS) -nostdlib -L$(DESTDIR)$(PREFIX)/lib -lk -lgcc
 
 ARCHDIR:=arch/$(HOSTARCH)
 
+ifeq ($(HOSTARCH),x86_64)
+	CFLAGS := $(CFLAGS) -DARCH_AMD64
+else ifeq ($(HOSTARCH),aarch64)
+	CFLAGS := $(CFLAGS) -DARCH_AARCH64
+endif
+
 include $(ARCHDIR)/make.config
 
 CFLAGS   := $(CFLAGS) $(KERNEL_ARCH_CFLAGS)
@@ -67,6 +73,9 @@ betelgeuse.kernel: $(OBJS) $(ARCHDIR)/linker.ld
 
 $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 	OBJ=`$(CC) $(CFLAGS) $(LDFLAGS) -print-file-name=$(@F)` && cp "$$OBJ" $@
+
+arch/x86_64/interrupts.o: arch/x86_64/interrupts.c
+	$(CC) -MD -c $< -o $@ -std=gnu11 -mgeneral-regs-only $(CFLAGS) $(CPPFLAGS)
 
 .c.o:
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
