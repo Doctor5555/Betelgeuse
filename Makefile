@@ -2,7 +2,7 @@ EMU		    := /usr/local/opt/qemu/bin/qemu-system-x86_64
 MKGPT       := ~/dev/Archive/mkgpt/mkgpt
 MKISO 		:= xorriso
 
-EMUFLAGS	:= -drive if=pflash,format=raw,file=bin/OVMF.fd -drive format=raw,file=fat:rw:bin/iso -M accel=kvm:tcg -net none -serial stdio -m 128M -d int
+EMUFLAGS	:= -d int -drive if=pflash,format=raw,file=bin/OVMF.fd -drive format=raw,file=fat:rw:bin/iso -M accel=kvm:tcg -net none -serial stdio -m 128M
 EMUHDFLAGS  := -L bin/ -bios OVMF.fd -hda betelgeuse.bin
 EMUISOFLAGS := -L bin/ -bios OVMF.fd -cdrom betelgeuse.iso
 

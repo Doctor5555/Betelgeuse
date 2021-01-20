@@ -21,6 +21,7 @@ _start:
     ; TEMPORARY, TESTING:
     int3
     int3
+    int 4
 
 .halt:
     hlt

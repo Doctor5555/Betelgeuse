@@ -56,10 +56,13 @@ void print_check(uint8_t status, const char *msg) {
 
 uint64_t kmain() {
     uint8_t result = 0;
-
+    
     result = page_allocator_init(&boot_table);
     CHECK("Page allocator initialisation");
-
+    
+    //result = install_stack();
+    //CHECK("Stack initialisation");
+    
     result = install_interrupts();
     CHECK("Install interrupts");
 }
