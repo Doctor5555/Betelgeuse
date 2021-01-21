@@ -18,11 +18,6 @@ _start:
     extern kmain
     call kmain
 
-    ; TEMPORARY, TESTING:
-    int3
-    int3
-    int 4
-
 .halt:
     hlt
     jmp .halt

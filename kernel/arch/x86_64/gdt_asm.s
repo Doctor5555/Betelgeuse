@@ -1,4 +1,5 @@
 global set_gdt
+global set_tss
 
 section .text
 
@@ -26,4 +27,9 @@ set_gdt:
     push .reload_cs
     o64 retf
 .reload_cs:
+    ret
+
+set_tss:
+    mov rax, rdi
+    ltr ax
     ret
