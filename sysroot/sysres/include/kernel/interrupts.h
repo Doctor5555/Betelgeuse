@@ -6,11 +6,11 @@
 #if defined(ARCH_AMD64)
 
 struct InterruptStackFrame {
-    uint64_t ip;
     uint64_t cs;
+    uint64_t ip;
     uint64_t rflags;
-    uint64_t sp;
     uint64_t ss;
+    uint64_t sp;
 };
 
 /*
