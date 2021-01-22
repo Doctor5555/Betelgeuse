@@ -15,46 +15,46 @@ SECTIONS
         . = ALIGN(4096);
     }
 
-   .data :
-   {
+    .data :
+    {
         _data = .;
         *(.data)
         . = ALIGN(4096);
-   }
+    }
 
     .rodata :
     {
-		_rodata = .;
-		*(.rodata*)
-		. = ALIGN(4096);
+        _rodata = .;
+        *(.rodata*)
+        . = ALIGN(4096);
 	}
 
-   .eh_frame :
-   {
-       _ehframe = .;
-       *(.eh_frame)
+    .eh_frame :
+    {
+        _ehframe = .;
+        *(.eh_frame)
         . = ALIGN(4096);
-   }
+    }
 
-   .bss :
-   {
-       _bss = .;
-       *(.bss)
+    .bss :
+    {
+        _bss = .;
+        *(.bss)
 
-       /*
+        /*
         * You usually need to include generated COMMON symbols
         * under kernel BSS section or use gcc's -fno-common
         */
 
         *(COMMON)
-       . = ALIGN(4096);
-   }
+        . = ALIGN(4096);
+    }
 
-   _end = .;
-   __kernel_end = .;
+    _end = .;
+    __kernel_end = .;
 
-   /DISCARD/ :
-   {
+    /DISCARD/ :
+    {
         *(.comment)
-   }
+    }
 }
