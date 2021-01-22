@@ -58,6 +58,13 @@ typedef uint64_t virtual_addr;
 typedef uint64_t pageframe_t;
 
 /*
+ * Deal with a page fault, perhaps by swapping back in the page
+ * Returns: error code (-1 -> failed, 0 -> success, 1 -> mapped?????)
+ * Takse: none
+ */
+int8_t page_handle_page_fault();
+
+/*
  * Map a page in the active page table
  * Returns: error code (-1 -> failed, 0 -> success, 1 -> already mapped)
  * Takes:

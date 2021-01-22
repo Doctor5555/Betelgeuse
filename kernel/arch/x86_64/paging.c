@@ -3,6 +3,10 @@
 static uint64_t *current_pml4;
 static uint64_t offset;
 
+int8_t page_handle_page_fault() {
+    return 0; /* :PageFaults @TODO @CRITICAL: Actually implement this */
+}
+
 int8_t page_mapper_init(uint64_t memory_offset, uint64_t *pml4) {
     current_pml4 = pml4;
     offset = memory_offset;
