@@ -1,3 +1,41 @@
+#  --------------------------------------------------------------------
+#echo "$PATH" | grep -q "$HOME/opt/cross/bin" && echo "" || export PATH="$HOME/opt/cross/bin:$PATH"
+
+#MAKE=${MAKE:-make}
+#HOST=${HOST:-$(./default-host.sh)}
+#HOSTARCH=${HOSTARCH:-$(./target-triplet-to-arch.sh $HOST)}
+MAKE := make
+HOST := x86_64-elf
+HOSTARCH := x86_64
+
+AR := $(HOST)-ar
+AS := $(HOST)-as
+CC := $(HOST)-gcc
+ 
+PREFIX := /sysres
+EXEC_PREFIX := $(PREFIX)
+BOOTDIR := /boot
+LIBDIR := $(EXEC_PREFIX)/lib
+INCLUDEDIR := $(PREFIX)/include
+RESDIR := /resources
+ 
+CFLAGS := -O2 -g
+CPPFLAGS := 
+ 
+# Configure the cross-compiler to use the desired system root.
+SYSROOT := $(shell pwd)/../sysroot
+CC := $(CC) --sysroot=$(SYSROOT)
+ 
+# Work around that the -elf gcc targets doesn't have a system include directory
+# because it was configured with --without-headers rather than --with-sysroot.
+#if echo "$HOST" | grep -Eq -- '-elf($|-)'; then
+#  CC="$CC -isystem=$INCLUDEDIR"
+#fi
+
+CC := $(CC) -isystem=$(INCLUDEDIR)
+
+# --------------------------------------------------------------------
+
 DEFAULT_HOST!=../default-host.sh
 HOST?=$(DEFAULT_HOST)
 HOSTARCH?=../target-triplet-to-arch.sh $(HOST)
@@ -63,16 +101,16 @@ libc.a: $(OBJS)
 libk.a: $(LIBK_OBJS)
 	$(AR) rcs $@ $(LIBK_OBJS)
  
-.c.o:
+%.o: %.c
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
  
-.S.o:
+%.o: %.S
 	$(CC) -MD -c $< -o $@ $(CFLAGS) $(CPPFLAGS)
  
-.c.libk.o:
+%.libk.o: %.c
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
  
-.S.libk.o:
+%.libk.o: %.S
 	$(CC) -MD -c $< -o $@ $(LIBK_CFLAGS) $(LIBK_CPPFLAGS)
  
 clean:

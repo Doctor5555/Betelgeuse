@@ -1,7 +1,9 @@
-ARCH := x86_64
+# --------------------------------------------------------------------
+ARCH        := x86_64
 
 CC		    := clang
-LD		    := /usr/local/opt/llvm/bin/lld-link
+LD		    := lld-link
+# --------------------------------------------------------------------
 
 CFLAGS		:= -g -target $(ARCH)-pc-win32-coff -MMD -flto -ffreestanding -fno-stack-protector -fshort-wchar -Iinclude -std=c11 -mno-red-zone -Wall -Wextra
 LDFLAGS		:= -subsystem:efi_application -nodefaultlib -dll -entry:efi_main

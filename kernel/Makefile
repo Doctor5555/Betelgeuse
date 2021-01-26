@@ -1,3 +1,41 @@
+# --------------------------------------------------------------------
+#echo "$PATH" | grep -q "$HOME/opt/cross/bin" && echo "" || export PATH="$HOME/opt/cross/bin:$PATH"
+
+#MAKE=${MAKE:-make}
+#HOST=${HOST:-$(./default-host.sh)}
+#HOSTARCH=${HOSTARCH:-$(./target-triplet-to-arch.sh $HOST)}
+MAKE := make
+HOST := x86_64-elf
+HOSTARCH := x86_64
+
+AR := $(HOST)-ar
+AS := $(HOST)-as
+CC := $(HOST)-gcc
+ 
+PREFIX := /sysres
+EXEC_PREFIX := $(PREFIX)
+BOOTDIR := /boot
+LIBDIR := $(EXEC_PREFIX)/lib
+INCLUDEDIR := $(PREFIX)/include
+RESDIR := /resources
+ 
+CFLAGS := -O2 -g
+CPPFLAGS := 
+ 
+# Configure the cross-compiler to use the desired system root.
+SYSROOT := $(shell pwd)/../sysroot
+CC := $(CC) --sysroot=$(SYSROOT)
+ 
+# Work around that the -elf gcc targets doesn't have a system include directory
+# because it was configured with --without-headers rather than --with-sysroot.
+#if echo "$HOST" | grep -Eq -- '-elf($|-)'; then
+#  CC="$CC -isystem=$INCLUDEDIR"
+#fi
+
+CC := $(CC) -isystem=$(INCLUDEDIR)
+
+# --------------------------------------------------------------------
+
 DEFAULT_HOST!=../default-host.sh
 HOST?=$(DEFAULT_HOST)
 HOSTARCH?=../target-triplet-to-arch.sh $(HOST)
@@ -41,10 +79,10 @@ kernel/memory.o \
 kernel/panic.o \
 kernel/serial.o
 
-CRTI_OBJ=crti.o
-CRTBEGIN_OBJ:=$(shell $(CC) $(CFLAGS) -print-file-name=crtbegin.o)
-CRTEND_OBJ:=$(shell $(CC) $(CFLAGS) -print-file-name=crtend.o)
-CRTN_OBJ=crtn.o
+CRTI_OBJ     := crti.o
+CRTBEGIN_OBJ := $(shell $(CC) $(CFLAGS) -print-file-name=crtbegin.o)
+CRTEND_OBJ   := $(shell $(CC) $(CFLAGS) -print-file-name=crtend.o)
+CRTN_OBJ     := crtn.o
 
 OBJS=\
 $(ARCHDIR)/crti.o \
@@ -77,10 +115,10 @@ $(ARCHDIR)/crtbegin.o $(ARCHDIR)/crtend.o:
 arch/x86_64/interrupts.o: arch/x86_64/interrupts.c
 	$(CC) -MD -c $< -o $@ -std=gnu11 -mgeneral-regs-only $(CFLAGS) $(CPPFLAGS)
 
-.c.o:
+%.o: %.c
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
-.s.o:
+%.o: %.s
 	nasm -felf64 $< -o $@
 
 clean:
