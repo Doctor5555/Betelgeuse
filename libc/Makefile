@@ -1,39 +1,24 @@
 #  --------------------------------------------------------------------
-#echo "$PATH" | grep -q "$HOME/opt/cross/bin" && echo "" || export PATH="$HOME/opt/cross/bin:$PATH"
-
-#MAKE=${MAKE:-make}
-#HOST=${HOST:-$(./default-host.sh)}
-#HOSTARCH=${HOSTARCH:-$(./target-triplet-to-arch.sh $HOST)}
-MAKE := make
 HOST := x86_64-elf
 HOSTARCH := x86_64
 
-AR := $(HOST)-ar
-AS := $(HOST)-as
-CC := $(HOST)-gcc
- 
-PREFIX := /sysres
+MAKE := make
+AR   := $(HOST)-ar
+AS   := $(HOST)-as
+CC   := $(HOST)-gcc
+
+PREFIX      := /sysres
 EXEC_PREFIX := $(PREFIX)
-BOOTDIR := /boot
-LIBDIR := $(EXEC_PREFIX)/lib
-INCLUDEDIR := $(PREFIX)/include
-RESDIR := /resources
- 
-CFLAGS := -O2 -g
+BOOTDIR     := /boot
+LIBDIR      := $(EXEC_PREFIX)/lib
+INCLUDEDIR  := $(PREFIX)/include
+RESDIR      := /resources
+
+CFLAGS   := -O2 -g
 CPPFLAGS := 
- 
-# Configure the cross-compiler to use the desired system root.
+
 SYSROOT := $(shell pwd)/../sysroot
-CC := $(CC) --sysroot=$(SYSROOT)
- 
-# Work around that the -elf gcc targets doesn't have a system include directory
-# because it was configured with --without-headers rather than --with-sysroot.
-#if echo "$HOST" | grep -Eq -- '-elf($|-)'; then
-#  CC="$CC -isystem=$INCLUDEDIR"
-#fi
-
-CC := $(CC) -isystem=$(INCLUDEDIR)
-
+CC      := $(CC) --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR)
 # --------------------------------------------------------------------
 
 DEFAULT_HOST!=../default-host.sh

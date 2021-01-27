@@ -1,49 +1,36 @@
 # --------------------------------------------------------------------
-#echo "$PATH" | grep -q "$HOME/opt/cross/bin" && echo "" || export PATH="$HOME/opt/cross/bin:$PATH"
-
-#MAKE=${MAKE:-make}
-#HOST=${HOST:-$(./default-host.sh)}
-#HOSTARCH=${HOSTARCH:-$(./target-triplet-to-arch.sh $HOST)}
-MAKE := make
-HOST := x86_64-elf
+HOST     := x86_64-elf
 HOSTARCH := x86_64
 
-AR := $(HOST)-ar
-AS := $(HOST)-as
-CC := $(HOST)-gcc
+MAKE := make
+AR   := $(HOST)-ar
+AS   := nasm -felf64
+CC   := $(HOST)-gcc
  
-PREFIX := /sysres
+PREFIX      := /sysres
 EXEC_PREFIX := $(PREFIX)
-BOOTDIR := /boot
-LIBDIR := $(EXEC_PREFIX)/lib
-INCLUDEDIR := $(PREFIX)/include
-RESDIR := /resources
- 
-CFLAGS := -O2 -g
-CPPFLAGS := 
- 
-# Configure the cross-compiler to use the desired system root.
+BOOTDIR     := /boot
+LIBDIR      := $(EXEC_PREFIX)/lib
+INCLUDEDIR  := $(PREFIX)/include
+RESDIR      := /resources
+
+CFLAGS   := -O2 -g
+CPPFLAGS :=
+LDFLAGS  :=
+LIBS     :=
+
 SYSROOT := $(shell pwd)/../sysroot
-CC := $(CC) --sysroot=$(SYSROOT)
- 
-# Work around that the -elf gcc targets doesn't have a system include directory
-# because it was configured with --without-headers rather than --with-sysroot.
-#if echo "$HOST" | grep -Eq -- '-elf($|-)'; then
-#  CC="$CC -isystem=$INCLUDEDIR"
-#fi
-
-CC := $(CC) -isystem=$(INCLUDEDIR)
-
+CC      := $(CC) --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR)
 # --------------------------------------------------------------------
 
-DEFAULT_HOST!=../default-host.sh
-HOST?=$(DEFAULT_HOST)
-HOSTARCH?=../target-triplet-to-arch.sh $(HOST)
+DEFAULT_HOST != ../default-host.sh
+HOST         ?= $(DEFAULT_HOST)
+HOSTARCH     ?= ../target-triplet-to-arch.sh $(HOST)
 
-CFLAGS?=-O2 -g
-CPPFLAGS?=
-LDFLAGS?=
-LIBS?=
+CFLAGS   ?= -O2 -g
+CPPFLAGS ?=
+LDFLAGS  ?=
+LIBS     ?=
 
 DESTDIR?=../sysroot
 PREFIX?=/sysres/local
@@ -119,7 +106,7 @@ arch/x86_64/interrupts.o: arch/x86_64/interrupts.c
 	$(CC) -MD -c $< -o $@ -std=gnu11 $(CFLAGS) $(CPPFLAGS)
 
 %.o: %.s
-	nasm -felf64 $< -o $@
+	$(AS) $< -o $@
 
 clean:
 	rm -f betelgeuse.kernel

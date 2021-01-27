@@ -14,15 +14,13 @@ RESDIR      := /resources
 EMU		    := qemu-system-x86_64
 MKGPT       := ~/dev/Archive/mkgpt/mkgpt
 MKISO 		:= xorriso
-# --------------------------------------------------------------------
 
 EMUFLAGS	:= -drive if=pflash,format=raw,file=bin/OVMF.fd -drive format=raw,file=fat:rw:bin/iso -M accel=tcg -net none -serial stdio -m 128M -d int --no-reboot --no-shutdown
 EMUHDFLAGS  := -L bin/ -bios OVMF.fd -hda betelgeuse.bin
 EMUISOFLAGS := -L bin/ -bios OVMF.fd -cdrom betelgeuse.iso
+# --------------------------------------------------------------------
 
 BOOTFILE := bin/iso/efi/boot/bootx64.efi
-
-MAKEFLAGS   := SYSROOT=$(SYSROOT)
 
 .PHONY: headers build iso test isotest usbtest writeusb hd hdtest fatimg clean $(PROJECTS:=.build) $(SYSTEM_HEADER_PROJECTS:=.headers) $(PROJECTS:=.clean)
 
@@ -38,7 +36,7 @@ $(PROJECTS:=.clean):
 build: $(PROJECTS:=.build)
 	mkdir -p bin/iso/boot
 	cp -r sysroot/boot bin/iso/
-	./inc_buildnum.sh
+	./inc_version.sh
 	
 clean: $(PROJECTS:=.clean)
 	rm -rf bin/iso

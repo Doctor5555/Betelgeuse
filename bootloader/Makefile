@@ -2,11 +2,12 @@
 ARCH        := x86_64
 
 CC		    := clang
-LD		    := lld-link
+LD		    := /usr/local/opt/llvm/bin/lld-link
+
+CFLAGS		:= -O2 -g -target $(ARCH)-pc-win32-coff -MMD -flto -ffreestanding -fno-stack-protector -fshort-wchar -Iinclude -std=c11 -mno-red-zone -Wall -Wextra
+LDFLAGS		:= -subsystem:efi_application -nodefaultlib -dll -entry:efi_main
 # --------------------------------------------------------------------
 
-CFLAGS		:= -g -target $(ARCH)-pc-win32-coff -MMD -flto -ffreestanding -fno-stack-protector -fshort-wchar -Iinclude -std=c11 -mno-red-zone -Wall -Wextra
-LDFLAGS		:= -subsystem:efi_application -nodefaultlib -dll -entry:efi_main
 OBJS	    := arch/x86_64/uefi_boot.o arch/x86_64/memcpy.o arch/x86_64/guids.o arch/x86_64/uefi_print.o arch/x86_64/uefi_file.o arch/x86_64/uefi_mem.o arch/x86_64/uefi_tty.o
 
 DESTDIR     := ../bin/iso
