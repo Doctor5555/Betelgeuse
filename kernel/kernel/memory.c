@@ -226,7 +226,7 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
     }
 
     virtual_address_map[0].base_pointer = (uint64_t)boot_table->mapping_base;
-    virtual_address_map[0].length = (uint64_t)virtual_address_map + (1 << 12) - (uint64_t)boot_table->mapping_base;
+    virtual_address_map[0].length = (uint64_t)virtual_address_map_free_bitmap + (1 << 12) - (uint64_t)boot_table->mapping_base;
     virtual_address_map[0].next = NULL;
     virtual_address_map_free_bitmap[0] |= 1 << 63;
 
