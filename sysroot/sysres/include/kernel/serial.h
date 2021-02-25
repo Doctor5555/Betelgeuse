@@ -1,5 +1,5 @@
-#ifndef _SERIAL_PORT_H
-#define _SERIAL_PORT_H
+#ifndef _KERNEL_SERIAL_H
+#define _KERNEL_SERIAL_H
 
 #include <stdint.h>
 
@@ -21,4 +21,4 @@ void serial_write_string(char *a, uint16_t len);
 
 void serial_write_hex64(uint64_t val);
 
-#endif /* _SERIAL_PORT_H */
+#endif /* _KERNEL_SERIAL_H */

@@ -1,5 +1,5 @@
-#ifndef _MEMORY_H
-#define _MEMORY_H
+#ifndef _KERNEL_MEMORY_H
+#define _KERNEL_MEMORY_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -554,4 +554,4 @@ void *kmalloc(uint64_t bytes);
  */
 void kfree(void *pointer);
 
-#endif /* _MEMORY_H */
+#endif /* _KERNEL_MEMORY_H */

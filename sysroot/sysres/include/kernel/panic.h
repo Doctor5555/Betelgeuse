@@ -1,7 +1,7 @@
-#ifndef _PANIC_H_GUARD
-#define _PANIC_H_GUARD
+#ifndef _KERNEL_PANIC_H
+#define _KERNEL_PANIC_H
 
 __attribute__ ((noreturn))
 void kernel_panic(void);
 
-#endif
+#endif /* _KERNEL_PANIC_H */

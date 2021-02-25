@@ -1,5 +1,5 @@
-#ifndef _INTERRUPTS_H
-#define _INTERRUPTS_H
+#ifndef _KERNEL_INTERRUPTS_H
+#define _KERNEL_INTERRUPTS_H
 
 #include <stdint.h>
 
@@ -37,4 +37,4 @@ struct idt_entry {
 
 int8_t install_interrupts();
 
-#endif /* _INTERRUPTS_H */
+#endif /* _KERNEL_INTERRUPTS_H */

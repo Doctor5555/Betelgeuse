@@ -34,8 +34,8 @@
  * namely when there is no precomposed Unicode value for the glyph.
  */
 
-#ifndef _PSF_H
-#define _PSF_H
+#ifndef _KERNEL_PSF_H
+#define _KERNEL_PSF_H
 
 
 #define PSF1_MAGIC0	0x36
@@ -99,4 +99,4 @@ struct psf2_header {
 				&& (x)[2]==PSF2_MAGIC2 && (x)[3]==PSF2_MAGIC3)
 
 
-#endif	/* _PSF_H */
+#endif	/* _KERNEL_PSF_H */

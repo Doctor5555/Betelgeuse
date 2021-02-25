@@ -1,5 +1,5 @@
-#ifndef _TTY_H
-#define _TTY_H
+#ifndef _KERNEL_TTY_H
+#define _KERNEL_TTY_H
 
 #include <bootloader/boot_table.h>
 
@@ -13,4 +13,4 @@ void terminal_putentryat(unsigned char c, uint64_t column, uint64_t row, unsigne
 void terminal_newline();
 void terminal_cursor(uint64_t x, uint64_t y);
 
-#endif /* _TTY_H */
+#endif /* _KERNEL_TTY_H */
