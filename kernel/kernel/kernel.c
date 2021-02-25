@@ -55,7 +55,7 @@ void print_check(uint8_t status, const char *msg) {
 #define CHECK(msg) do { if (result) { print_check(1, (msg)); return 1; } else print_check(0, (msg)); } while (0)
 
 uint64_t kmain() {
-    uint8_t result = 0;
+    int8_t result = 0;
     
     result = page_allocator_init(&boot_table);
     CHECK("Page allocator initialisation");
@@ -65,4 +65,12 @@ uint64_t kmain() {
     
     result = install_interrupts();
     CHECK("Install interrupts");
+
+    result = install_apic();
+    if (result == -1) {
+        print_check(1, "APIC not supported!");
+        return 1;
+    } else if (result == 0) {
+        print_check(0, "Install APIC");
+    }
 }

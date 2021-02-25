@@ -23,4 +23,3 @@ _start:
     jmp .halt
 
 .size: equ $ - _start
-

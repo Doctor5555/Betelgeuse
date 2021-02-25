@@ -1,10 +1,18 @@
 #include <kernel/interrupts.h>
 
 #include <kernel/panic.h>
+#include <kernel/serial.h>
+#include <kernel/memory.h>
+
+#include "apic.h"
 
 #include <stdio.h>
+#include <cpuid.h>
 
 struct idt_entry idt[256];
+
+// Pointer to volatile structure
+volatile struct apic_registers *apic_registers_pointer;
 
 void print_interrupt_stack_frame(const char *type, struct InterruptStackFrame *frame) {
     printf("Exception: %s\n\rInterruptStackFrame {\n\r", type);
@@ -131,6 +139,11 @@ void __attribute__((interrupt)) security_exception_handler(struct InterruptStack
     /* @TODO: Deal with this. */
 }
 
+void __attribute__((interrupt)) apic_spurious_interrupt(struct InterruptStackFrame *frame) {
+    // Send EOI to local APIC
+    apic_registers_pointer->end_of_interrupt = 0;
+}
+
 void set_idt_entry(uint8_t idx, void *fn, uint16_t attributes, uint8_t ist) {
     uint64_t fn_addr = (uint64_t)fn;
     idt[idx].target_offset_15_0 = fn_addr & 0x0000ffff;
@@ -183,9 +196,61 @@ int8_t install_interrupts() {
     set_idt_entry(29, &vmm_communication_exception_handler, 0x8e, 0);
     set_idt_entry(30, &security_exception_handler, 0x8e, 0);
     /* Reserved */
+    for (int i = 32; i < 40; i++)
+        set_idt_entry(i, &irq_pic1, 0x8e, 0);
+    for (int i = 40; i < 48; i++)
+        set_idt_entry(i, &irq_pic2, 0x8e, 0);
     /* @TODO: External interrupts and software interrupts */
+    set_idt_entry(0xFF, &apic_spurious_interrupt, 0x8e, 0);
 
     load_idt(idt, sizeof(idt));
 
+    return 0;
+}
+
+/* disable_PIC() is derived largely from examples given on https://wiki.osdev.org/PIC */
+void disable_PIC() {
+    outb(PIC_1, ICW1_INIT | ICW1_ICW4);
+    outb(PIC_2, ICW1_INIT | ICW1_ICW4);
+    io_wait();
+    outb(PIC_1_data, 0x20);
+    outb(PIC_2_data, 0x20 + 0x08);
+    io_wait();
+    outb(PIC_1_data, 4);
+    outb(PIC_2_data, 2);
+    io_wait();
+    outb(PIC_1_data, ICW4_8086);
+    outb(PIC_2_data, ICW4_8086);
+    io_wait();
+
+    outb(PIC_1_data, 0xFF);
+    outb(PIC_2_data, 0xFF);
+}
+
+int8_t install_apic() {
+    {
+        uint32_t edx, unused;
+        __cpuid(1, unused, unused, unused, edx);
+        if (!(edx & (1 << 9))) {
+            return -1; // APIC not supported; This is not allowed.
+        }
+    }
+
+    uint32_t high, low;
+    __asm__ __volatile__ ("rdmsr" : "=a"(low), "=d"(high) : "c"(APIC_MSR));
+    uint64_t apic_msr_val = (high << 32) | low;
+    if (!(apic_msr_val | (1 << 11))) { // Set enable bit
+        apic_msr_val |= (1 << 11);
+        high = apic_msr_val >> 32;
+        low = apic_msr_val & 0xFFFFFFFF;
+        __asm__ __volatile__ ("wrmsr" : : "a"(low), "d"(high), "c"(APIC_MSR));
+    }
+    uint64_t apic_base_address = apic_msr_val & 0x000FFFFFFFFFF000;
+    page_virtual_alloc(&apic_registers_pointer);
+    int8_t map_result = page_map(apic_registers_pointer, apic_base_address);
+    //printf("%#018llx\n\r", apic_base_address);
+    //printf("%d\n\r", map_result);
+    //printf("%#018llx, %#010llx, %#010llx\n\r", apic_registers_pointer, ((struct apic_registers*)(apic_base_address))->local_apic_version, ((uint32_t*)apic_base_address)[12]);
+    
     return 0;
 }

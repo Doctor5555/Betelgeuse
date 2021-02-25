@@ -10,3 +10,7 @@ void outb(uint16_t _port, uint8_t val) {
     __asm__ __volatile__("outb %0, %1" : : "a" (val), "Nd" (_port));
 }
 
+void io_wait() {
+    uint8_t z = 0;
+    __asm__ __volatile__("outb %0, %1" : : "a" (z), "Nd" (0x80));
+}
