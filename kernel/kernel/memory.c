@@ -187,6 +187,7 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
     }
     page_mapper_init(boot_table->mapping_base, boot_table->pml4_pointer);
     
+    //printf("kernel_start_pointer: %#018llx, count: %#018llx, end: %#018llx, mapping_base: %#018llx\n\r", boot_table->kernel_start_pointer, boot_table->kernel_page_count, boot_table->kernel_start_pointer + (boot_table->kernel_page_count << 12), boot_table->mapping_base);
     int8_t result = page_physical_alloc(&virtual_address_map);
     if (result == -1) {
         return -1;
@@ -196,14 +197,14 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
     // This is necessary only if the kernel page count is somehow wrong.
     uint64_t i = 0;
     while (result == 1) {
-        result = page_map(boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12), virtual_address_map);
         i++;
+        result = page_map(boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12), virtual_address_map);
     }
     if (result == -1) {
         page_physical_free(virtual_address_map);
         return -1;
     }
-    virtual_address_map = boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i - 1) << 12);
+    virtual_address_map = boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12);
 
     result = page_physical_alloc(&virtual_address_map_free_bitmap);
     if (result == -1) {
@@ -212,10 +213,10 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
         page_physical_free(virtual_address_map_physical_addr);
         return -1;
     }
-    result = page_map(boot_table->kernel_start_pointer + (boot_table->kernel_page_count << 12), virtual_address_map_free_bitmap);
+    result = 1;//page_map(boot_table->kernel_start_pointer + (boot_table->kernel_page_count << 12), virtual_address_map_free_bitmap);
     while (result == 1) {
-        result = page_map(boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12), virtual_address_map_free_bitmap);
         i++;
+        result = page_map(boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12), virtual_address_map_free_bitmap);
     }
     if (result == -1) {
         uint64_t virtual_address_map_physical_addr;
@@ -224,6 +225,7 @@ int8_t page_allocator_init(struct boot_table *boot_table) {
         page_physical_free(virtual_address_map_free_bitmap);
         return -1;
     }
+    virtual_address_map_free_bitmap = boot_table->kernel_start_pointer + ((boot_table->kernel_page_count + i) << 12);
 
     virtual_address_map[0].base_pointer = (uint64_t)boot_table->mapping_base;
     virtual_address_map[0].length = (uint64_t)virtual_address_map_free_bitmap + (1 << 12) - (uint64_t)boot_table->mapping_base;
@@ -343,6 +345,7 @@ void page_physical_free(pageframe_t frame) {
 } while (0)
 
 int8_t page_virtual_alloc(pageframe_t *frame) {
+    //printf("%#018llx, %#018llx, %#018llx\n\r", virtual_address_map_first, virtual_address_map_first->base_pointer, virtual_address_map_first->length);
     // @TODO: Figure out how to find a good spot for a new allocation in
     //        a user process that won't be the highest block in memory.
     *frame = virtual_address_map_first->base_pointer + virtual_address_map_first->length;
