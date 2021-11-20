@@ -1,0 +1,10 @@
+Process "Hibernate"
+ - Event is sent to process to tell it it is being put into hibernation mode.
+ - Process can request up to 1 second to prepare for hibernation
+ - Events will no longer be sent to the process until it is brought out of hibernation mode.
+ - Scheduler will not allocate time for the process
+ - Process will be sent an event to come out of hibernation
+ - If the process is quit while in hibernation, it is brought out of hibernation before being closed
+
+Computer "Hibernate"
+ - 

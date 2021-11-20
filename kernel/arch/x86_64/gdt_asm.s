@@ -25,6 +25,7 @@ set_gdt:
 
     push 0x8
     push .reload_cs
+    int3
     o64 retf
 .reload_cs:
     ret

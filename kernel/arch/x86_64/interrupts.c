@@ -7,7 +7,7 @@
 #include "apic.h"
 
 #include <stdio.h>
-#include <cpuid.h>
+//#include <cpuid.h>
 
 struct idt_entry idt[256];
 
@@ -140,8 +140,16 @@ void __attribute__((interrupt)) security_exception_handler(struct InterruptStack
 }
 
 void __attribute__((interrupt)) apic_spurious_interrupt(struct InterruptStackFrame *frame) {
-    // Send EOI to local APIC
-    apic_registers_pointer->end_of_interrupt = 0;
+    // Don't need to do anything here probably
+    // @TODO: Do we want to count spurious interrupts?
+}
+
+void __attribute__((interrupt)) apic_local_interrupt_0(struct InterruptStackFrame *frame) {
+    printf("lint0");
+}
+
+void __attribute__((interrupt)) apic_local_interrupt_1(struct InterruptStackFrame *frame) {
+    printf("lint1");
 }
 
 void set_idt_entry(uint8_t idx, void *fn, uint16_t attributes, uint8_t ist) {
@@ -201,6 +209,8 @@ int8_t install_interrupts() {
     for (int i = 40; i < 48; i++)
         set_idt_entry(i, &irq_pic2, 0x8e, 0);
     /* @TODO: External interrupts and software interrupts */
+    set_idt_entry(0xFD, &apic_local_interrupt_0, 0x8e, 0);
+    set_idt_entry(0xFE, &apic_local_interrupt_1, 0x8e, 0);
     set_idt_entry(0xFF, &apic_spurious_interrupt, 0x8e, 0);
 
     load_idt(idt, sizeof(idt));
@@ -248,6 +258,11 @@ int8_t install_apic() {
     uint64_t apic_base_address = apic_msr_val & 0x000FFFFFFFFFF000;
     page_virtual_alloc(&apic_registers_pointer);
     int8_t map_result = page_map(apic_registers_pointer, apic_base_address);
+
+    apic_registers_pointer->local_interrupt_vector_0 = 0xFD;
+    apic_registers_pointer->local_interrupt_vector_1 = 0xFE;
+    apic_registers_pointer->spurious_vector = 0x1FF;
+
     //printf("%#018llx\n\r", apic_base_address);
     //printf("%d\n\r", map_result);
     //printf("%#018llx, %#010llx, %#010llx\n\r", apic_registers_pointer, ((struct apic_registers*)(apic_base_address))->local_apic_version, ((uint32_t*)apic_base_address)[12]);

@@ -101,8 +101,11 @@ efi_status efi_main(efi_handle handle __attribute__((unused)), efi_system_table 
     status = file_close(config_handle);
     ERR(status);
 
+    print_hex64(u"Size: ", config_size);
+    print("\n\r");
     status = println_char((char*)config_buf, config_size);
     ERR(status);
+    //while (1) {}
 
     /* @TODO: Use boot.cfg to configure launch of the kernel */
 

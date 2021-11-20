@@ -13,7 +13,7 @@ OBJS	    := arch/x86_64/uefi_boot.o arch/x86_64/memcpy.o arch/x86_64/guids.o arc
 DESTDIR     := ../bin/iso
 BOOTDIR     := /efi/boot
 
-OVMF_URL	:= https://dl.bintray.com/no92/vineyard-binary/OVMF.fd
+OVMF_URL	:= ../rust-betelgeuse/bin/OVMF.fd
 OVMF_BIN	:= OVMF.fd
 OVMF		:= ../bin/$(OVMF_BIN)
 
@@ -30,7 +30,7 @@ bootx64.efi: $(OBJS)
 
 $(OVMF):
 	mkdir -p ../bin
-	wget $(OVMF_URL) -O $(OVMF) -qq
+	cp $(OVMF_URL) $(OVMF)
 
 clean:
 	rm -f bootx64.efi bootx64.lib

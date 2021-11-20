@@ -4,7 +4,7 @@ HOSTARCH := x86_64
 
 MAKE := make
 AR   := $(HOST)-ar
-AS   := $(HOST)-as
+AS   := nasm -felf64
 CC   := $(HOST)-gcc
 
 PREFIX      := /sysres
@@ -16,6 +16,8 @@ RESDIR      := /resources
 
 CFLAGS   := -O2 -g
 CPPFLAGS := 
+LDFLAGS  :=
+LIBS     :=
 
 SYSROOT := $(shell pwd)/../sysroot
 CC      := $(CC) --sysroot=$(SYSROOT) -isystem=$(INCLUDEDIR)

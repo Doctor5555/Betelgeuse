@@ -1,0 +1,3 @@
+Shell, Window server, Graphics driver, Disk driver, Filesystem driver, USB driver, Keyboard driver, Mouse driver, Display driver, perhaps some other drivers but probably not necessary, Browser, Text editor, Kernel task, Maybe OBS, maybe 5 or so miscellaneous processes 
+-> 
+18 processes with unique PIDs should be possible.
